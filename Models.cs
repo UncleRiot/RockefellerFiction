@@ -3,12 +3,12 @@ namespace RockefellerFiction;
 public sealed class PlannerSettings
 {
  public int PlanningYear { get; set; } = 2027;
- public int Person1Age { get; set; } = 51;
- public int Person2Age { get; set; } = 46;
+ public int Person1Age { get; set; } = 55;
+ public int Person2Age { get; set; } = 50;
  public int Person1RetirementAge { get; set; } = 67;
  public int Person2RetirementAge { get; set; } = 67;
- public int Person1EndAge { get; set; } = 100;
- public int Person2EndAge { get; set; } = 105;
+ public int Person1EndAge { get; set; } = 85;
+ public int Person2EndAge { get; set; } = 90;
 
  public decimal MonthlyLivingCosts { get; set; } = 2500m;
  public decimal InflationRate { get; set; } = 0.025m;
@@ -34,7 +34,7 @@ public sealed class PlannerSettings
  public decimal HouseTotalValue { get; set; } = 500000m;
  public decimal HouseBuildingShare { get; set; } = 0.70m;
  public decimal HouseReserveRate { get; set; } = 0.02m;
- public decimal CarReplacementValue { get; set; } = 17000m;
+ public decimal CarReplacementValue { get; set; } = 15000m;
  public int CarReplacementYears { get; set; } = 15;
  public decimal HealthReserveTarget { get; set; } = 10000m;
  public decimal TravelReserveTarget { get; set; }
