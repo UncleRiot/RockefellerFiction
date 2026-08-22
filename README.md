@@ -88,7 +88,7 @@ Die Anwendung speichert ihre Dateien im Programmverzeichnis:
 
 - C#
 - WPF
-- .NET
+- .NET10
 - Visual Studio
 
 ## Hinweis
