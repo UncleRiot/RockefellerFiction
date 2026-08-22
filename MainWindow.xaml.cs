@@ -153,33 +153,33 @@ public partial class MainWindow : Window
   AddMoney("OtherReserveTarget", "Sonstiges / Unvorhergesehenes Rücklage", _settings.OtherReserveTarget,
    "Optionaler zusätzlicher Puffer. Default 0 €.");
 
-  AddSection("7. Anlagen – konservative Defaultwerte");
-  AddMoney("WorldEtfCurrentValue", "MSCI World / Welt-ETF aktueller Stand", _settings.WorldEtfCurrentValue,
-   "Aktueller Depotwert dieses Bausteins. Der Wert dient ausschließlich zur Schätzung des bereits enthaltenen unversteuerten Kursgewinns und verändert nicht die Vermögensaufteilung.");
-  AddInt("WorldEtfStartYear", "MSCI World / Welt-ETF besteht seit Jahr", _settings.WorldEtfStartYear,
-   "Jahr, seit dem dieser Depotbaustein besteht. Zusammen mit dem aktuellen Stand und der historischen Durchschnittsrendite wird ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("WorldEtfHistoricalReturn", "MSCI World / Welt-ETF bisherige Durchschnittsrendite p.a. [Standardwert]", _settings.WorldEtfHistoricalReturn,
-   "Geschätzte durchschnittliche jährliche Rendite seit Bestehen des Depotbausteins. Default: 6 %. Sie wird nur für die Schätzung des historischen Einstandswerts verwendet.");
+  AddSection("7. Bestehende Depots – optional");
+  AddMoney("WorldEtfCurrentValue", "Wert des bereits vorhandenen Welt-ETF", _settings.WorldEtfCurrentValue,
+   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
+  AddInt("WorldEtfStartYear", "Seit wann besteht dieser Welt-ETF?", _settings.WorldEtfStartYear,
+   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
+  AddPercent("WorldEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Welt-ETF [Standardwert]", _settings.WorldEtfHistoricalReturn,
+   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
   AddPercent("WorldEtfReturn", "MSCI World / Welt-ETF Gesamtrendite [Standardwert]", _settings.WorldEtfReturn,
    "Fester durchschnittlicher nominaler Jahreswert für Kursentwicklung plus Ausschüttungen.");
   AddPercent("WorldEtfDistribution", "MSCI World / Welt-ETF Ausschüttung [Standardwert]", _settings.WorldEtfDistribution,
    "Davon angenommener Anteil, der als Ausschüttung ausgezahlt wird.");
-  AddMoney("DividendEtfCurrentValue", "Dividenden-ETF aktueller Stand", _settings.DividendEtfCurrentValue,
-   "Aktueller Depotwert dieses Bausteins. Der Wert dient ausschließlich zur Schätzung des bereits enthaltenen unversteuerten Kursgewinns und verändert nicht die Vermögensaufteilung.");
-  AddInt("DividendEtfStartYear", "Dividenden-ETF besteht seit Jahr", _settings.DividendEtfStartYear,
-   "Jahr, seit dem dieser Depotbaustein besteht. Zusammen mit dem aktuellen Stand und der historischen Durchschnittsrendite wird ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("DividendEtfHistoricalReturn", "Dividenden-ETF bisherige Durchschnittsrendite p.a. [Standardwert]", _settings.DividendEtfHistoricalReturn,
-   "Geschätzte durchschnittliche jährliche Rendite seit Bestehen des Depotbausteins. Default: 6 %. Sie wird nur für die Schätzung des historischen Einstandswerts verwendet.");
+  AddMoney("DividendEtfCurrentValue", "Wert des bereits vorhandenen Dividenden-ETF", _settings.DividendEtfCurrentValue,
+   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
+  AddInt("DividendEtfStartYear", "Seit wann besteht dieser Dividenden-ETF?", _settings.DividendEtfStartYear,
+   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
+  AddPercent("DividendEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Dividenden-ETF [Standardwert]", _settings.DividendEtfHistoricalReturn,
+   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
   AddPercent("DividendEtfReturn", "Dividenden-ETF Gesamtrendite [Standardwert]", _settings.DividendEtfReturn,
    "Fester durchschnittlicher nominaler Jahreswert.");
   AddPercent("DividendEtfDistribution", "Dividenden-ETF Ausschüttung [Standardwert]", _settings.DividendEtfDistribution,
    "Angenommene jährliche Ausschüttungsrendite.");
-  AddMoney("DividendStocksCurrentValue", "Dividenden-Aktien aktueller Stand", _settings.DividendStocksCurrentValue,
-   "Aktueller Depotwert dieses Bausteins. Der Wert dient ausschließlich zur Schätzung des bereits enthaltenen unversteuerten Kursgewinns und verändert nicht die Vermögensaufteilung.");
-  AddInt("DividendStocksStartYear", "Dividenden-Aktien bestehen seit Jahr", _settings.DividendStocksStartYear,
-   "Jahr, seit dem dieser Depotbaustein besteht. Zusammen mit dem aktuellen Stand und der historischen Durchschnittsrendite wird ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("DividendStocksHistoricalReturn", "Dividenden-Aktien bisherige Durchschnittsrendite p.a. [Standardwert]", _settings.DividendStocksHistoricalReturn,
-   "Geschätzte durchschnittliche jährliche Rendite seit Bestehen des Depotbausteins. Default: 6 %. Sie wird nur für die Schätzung des historischen Einstandswerts verwendet.");
+  AddMoney("DividendStocksCurrentValue", "Wert der bereits vorhandenen Dividenden-Aktien", _settings.DividendStocksCurrentValue,
+   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
+  AddInt("DividendStocksStartYear", "Seit wann bestehen diese Dividenden-Aktien?", _settings.DividendStocksStartYear,
+   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
+  AddPercent("DividendStocksHistoricalReturn", "Bisherige durchschnittliche Rendite der Dividenden-Aktien [Standardwert]", _settings.DividendStocksHistoricalReturn,
+   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
   AddPercent("DividendStocksReturn", "Dividenden-Aktien Gesamtrendite [Standardwert]", _settings.DividendStocksReturn,
    "Fester durchschnittlicher nominaler Jahreswert.");
   AddPercent("DividendStocksDistribution", "Dividenden-Aktien Ausschüttung [Standardwert]", _settings.DividendStocksDistribution,
@@ -342,17 +342,8 @@ public partial class MainWindow : Window
 
  private FrameworkElement CreateRow(string label, string helpText, FrameworkElement input)
  {
-  const string standardValueSuffix = " [Standardwert]";
-  bool isStandardValue = label.EndsWith(
-   standardValueSuffix,
-   StringComparison.Ordinal);
-
-  string displayLabel = isStandardValue
-   ? label[..^standardValueSuffix.Length]
-   : label;
-
   _fieldNumber++;
-  string numberedLabel = $"{_fieldNumber:00}. {displayLabel}";
+  string numberedLabel = $"{_fieldNumber:00}. {label}";
 
   var grid = new Grid
   {
@@ -368,7 +359,7 @@ public partial class MainWindow : Window
   var labelText = new TextBlock
   {
    Text = numberedLabel,
-   Tag = displayLabel,
+   Tag = label,
    TextWrapping = TextWrapping.Wrap,
    VerticalAlignment = VerticalAlignment.Center,
    Margin = new Thickness(20, 0, 0, 0)
@@ -409,21 +400,6 @@ public partial class MainWindow : Window
   input.VerticalAlignment = VerticalAlignment.Center;
   Grid.SetColumn(input, 2);
   grid.Children.Add(input);
-
-  if (isStandardValue)
-  {
-   var standardValueText = new TextBlock
-   {
-    Text = "[Standardwert]",
-    Foreground = (Brush)FindResource("AccentBrush"),
-    FontWeight = FontWeights.SemiBold,
-    VerticalAlignment = VerticalAlignment.Center,
-    Margin = new Thickness(10, 0, 0, 0)
-   };
-
-   Grid.SetColumn(standardValueText, 3);
-   grid.Children.Add(standardValueText);
-  }
 
   return grid;
  }
