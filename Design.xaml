@@ -99,6 +99,10 @@
       <ToggleButton x:Name="DropDownToggle"
                     Focusable="False"
                     ClickMode="Press"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch"
                     IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                     Background="Transparent"
                     BorderThickness="0">

@@ -31,33 +31,6 @@ public sealed class HelpPopupController
  public void TogglePinned(FrameworkElement anchor, string text)
  {
   ClosePinned();
-
-  var border = new Border
-  {
-   Background = System.Windows.Media.Brushes.White,
-   CornerRadius = new CornerRadius(6),
-   Padding = new Thickness(12),
-   MaxWidth = 360,
-   Child = new TextBlock
-   {
-    Text = text,
-    TextWrapping = TextWrapping.Wrap,
-    Foreground = System.Windows.Media.Brushes.Black,
-    FontSize = 13
-   }
-  };
-
-  _pinnedPopup = new Popup
-  {
-   PlacementTarget = anchor,
-   Placement = PlacementMode.Right,
-   StaysOpen = true,
-   AllowsTransparency = true,
-   Child = border,
-   HorizontalOffset = 8
-  };
-
-  _pinnedPopup.IsOpen = true;
  }
 
  public void ClosePinned()

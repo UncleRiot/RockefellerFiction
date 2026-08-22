@@ -2,15 +2,19 @@ namespace RockefellerFiction;
 
 public sealed class PlannerSettings
 {
- public int PlanningYear { get; set; } = 2027;
+ public int HouseholdPersonCount { get; set; } = 2;
+ public int PlanningYear { get; set; } = 2032;
  public int Person1Age { get; set; } = 55;
  public int Person2Age { get; set; } = 50;
+ public int Person2WorkEndYear { get; set; } = 2036;
+ public decimal Person2NetIncomeMonthly { get; set; } = 2000m;
+ public decimal Person2NetIncomeIncreaseRate { get; set; } = 0.01m;
  public int Person1RetirementAge { get; set; } = 67;
  public int Person2RetirementAge { get; set; } = 67;
  public int Person1EndAge { get; set; } = 85;
  public int Person2EndAge { get; set; } = 90;
 
- public decimal MonthlyLivingCosts { get; set; } = 2500m;
+ public decimal MonthlyLivingCosts { get; set; } = 2000m;
  public decimal InflationRate { get; set; } = 0.025m;
  public decimal PensionIncreaseRate { get; set; } = 0.01m;
  public decimal VoluntaryHealthInsuranceMinimumMonthlyIncome { get; set; } = 1318.33m;
@@ -18,11 +22,21 @@ public sealed class PlannerSettings
  public decimal VoluntaryHealthInsuranceRate { get; set; } = 0.14m;
  public decimal VoluntaryHealthInsuranceAdditionalRate { get; set; } = 0.029m;
  public decimal CareInsuranceChildlessRate { get; set; } = 0.042m;
- public decimal Person1PensionGrossMonthly { get; set; } = 1479m;
- public decimal Person2PensionGrossMonthly { get; set; } = 1120m;
+ public int HealthInsuranceBaseYear { get; set; } = DateTime.Today.Year;
+ public decimal HealthInsuranceAssessmentIncreaseRate { get; set; }
+ public decimal HealthInsuranceAdditionalRateAnnualChange { get; set; }
+ public decimal CareInsuranceRateAnnualChange { get; set; }
+ public decimal StressHealthInsuranceAssessmentAdditionalIncreaseRate { get; set; }
+ public decimal StressHealthInsuranceAdditionalRateAnnualChange { get; set; }
+ public decimal StressCareInsuranceRateAnnualChange { get; set; }
+ public decimal Person1PensionGrossMonthly { get; set; } = 1500m;
+ public decimal Person2PensionGrossMonthly { get; set; } = 1000m;
 
  public decimal CapitalGainsAllowance { get; set; } = 2000m;
+ public bool JointTaxation { get; set; } = true;
  public bool ChurchTaxEnabled { get; set; }
+ public decimal ChurchTaxRate { get; set; }
+ public decimal AdvanceLumpSumBaseRate { get; set; } = 0.032m;
  public bool KvdrPerson1 { get; set; } = true;
  public bool KvdrPerson2 { get; set; } = true;
 
@@ -40,10 +54,19 @@ public sealed class PlannerSettings
  public decimal TravelReserveTarget { get; set; }
  public decimal OtherReserveTarget { get; set; }
 
+ public decimal WorldEtfCurrentValue { get; set; }
+ public int WorldEtfStartYear { get; set; } = DateTime.Today.Year;
+ public decimal WorldEtfHistoricalReturn { get; set; } = 0.06m;
  public decimal WorldEtfReturn { get; set; } = 0.05m;
  public decimal WorldEtfDistribution { get; set; } = 0.015m;
+ public decimal DividendEtfCurrentValue { get; set; }
+ public int DividendEtfStartYear { get; set; } = DateTime.Today.Year;
+ public decimal DividendEtfHistoricalReturn { get; set; } = 0.06m;
  public decimal DividendEtfReturn { get; set; } = 0.045m;
  public decimal DividendEtfDistribution { get; set; } = 0.025m;
+ public decimal DividendStocksCurrentValue { get; set; }
+ public int DividendStocksStartYear { get; set; } = DateTime.Today.Year;
+ public decimal DividendStocksHistoricalReturn { get; set; } = 0.06m;
  public decimal DividendStocksReturn { get; set; } = 0.04m;
  public decimal DividendStocksDistribution { get; set; } = 0.03m;
 
@@ -86,17 +109,35 @@ public sealed class YearResult
  public decimal HealthCareCostsPerson1Monthly { get; set; }
  public decimal HealthCareCostsPerson2Monthly { get; set; }
  public decimal HealthInsuranceRelevantCapitalIncome { get; set; }
+ public decimal HealthInsuranceMinimumMonthlyIncomeApplied { get; set; }
+ public decimal HealthInsuranceMaximumMonthlyIncomeApplied { get; set; }
+ public decimal HealthInsuranceAdditionalRateApplied { get; set; }
+ public decimal CareInsuranceRateApplied { get; set; }
  public decimal TotalAnnualNeed { get; set; }
  public decimal ReserveTarget { get; set; }
  public decimal ReserveActual { get; set; }
  public decimal PensionGross { get; set; }
  public decimal PensionNet { get; set; }
+ public decimal PensionHealthAndCareDeductions { get; set; }
+ public decimal PensionIncomeTax { get; set; }
  public decimal DividendsGross { get; set; }
  public decimal InterestGross { get; set; }
  public decimal TaxesOnCapital { get; set; }
+ public decimal CapitalGainsAllowanceApplied { get; set; }
+ public decimal AdvanceLumpSumTaxableThisYear { get; set; }
+ public decimal AdvanceLumpSumCalculatedForNextYear { get; set; }
+ public decimal RealizedStockGains { get; set; }
+ public decimal RealizedEquityFundGains { get; set; }
+ public decimal StockLossCarryForward { get; set; }
+ public decimal OtherLossCarryForward { get; set; }
+ public decimal OneTimeIncome { get; set; }
+ public decimal OneTimeExpenses { get; set; }
+ public decimal RequiredForYear { get; set; }
  public decimal NetDividends { get; set; }
  public decimal FundingFromPension { get; set; }
  public decimal FundingFromDividends { get; set; }
+ public decimal Person2NetEmploymentIncome { get; set; }
+ public decimal FundingFromPerson2Income { get; set; }
  public decimal FundingFromOtherIncome { get; set; }
  public decimal FundingFromCapital { get; set; }
  public decimal FundingGap { get; set; }
@@ -142,3 +183,9 @@ public sealed class ProjectionResult
 }
 
 public sealed record HealthInsurancePreview(decimal Person1Monthly, decimal Person2Monthly);
+
+public sealed record HealthInsuranceProjectionParameters(
+ decimal MinimumMonthlyIncome,
+ decimal MaximumMonthlyIncome,
+ decimal AdditionalRate,
+ decimal CareRate);

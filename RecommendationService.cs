@@ -18,10 +18,26 @@ public static class RecommendationService
    parts.Add("Das Vermögen reicht bereits im Basisszenario nicht bis zum Planungsende.");
 
   string recommendedStrategy = StrategyService.Recommend(settings);
+  StrategyAllocation recommendedAllocation = StrategyService.GetDefault(recommendedStrategy);
+  bool recommendedBasisReachesPlanEnd =
+   ProjectionService.ReachesPlanEnd(settings, recommendedAllocation, false);
+  bool recommendedStressReachesPlanEnd =
+   ProjectionService.ReachesPlanEnd(settings, recommendedAllocation, true);
+
   if (!string.Equals(settings.Strategy, recommendedStrategy, StringComparison.Ordinal))
-   parts.Add($"Für die aktuellen Werte ist „{recommendedStrategy}“ die renditestärkste Default-Strategie, die Basis und Stress möglichst erfüllt.");
+  {
+   if (recommendedBasisReachesPlanEnd && recommendedStressReachesPlanEnd)
+    parts.Add($"Für die aktuellen Werte ist „{recommendedStrategy}“ die renditestärkste Default-Strategie, die Basis und Stress erfüllt.");
+   else
+    parts.Add("Keine Default-Strategie erfüllt Basis und Stress vollständig. Als konservativer Fallback wird „Sicherheit“ empfohlen.");
+  }
   else
-   parts.Add($"Die gewählte Strategie „{settings.Strategy}“ entspricht der aktuellen Empfehlung.");
+  {
+   if (recommendedBasisReachesPlanEnd && recommendedStressReachesPlanEnd)
+    parts.Add($"Die gewählte Strategie „{settings.Strategy}“ entspricht der aktuellen Empfehlung.");
+   else
+    parts.Add("Keine Default-Strategie erfüllt Basis und Stress vollständig. Die gewählte Strategie „Sicherheit“ entspricht dem konservativen Fallback.");
+  }
 
   decimal availableCash = settings.StartCapital * allocation.Cash;
   decimal requiredCash = basis.InitialRequiredCash;

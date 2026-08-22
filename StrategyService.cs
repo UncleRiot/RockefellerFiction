@@ -14,7 +14,8 @@ public static class StrategyService
  {
   string[] candidates = ["Wachstum", "Ausgewogen", "Sicherheit"];
 
-  foreach (string candidate in candidates)
+  foreach (string candidate in candidates.OrderByDescending(candidate =>
+           CalculateExpectedReturn(settings, GetDefault(candidate))))
   {
    StrategyAllocation allocation = GetDefault(candidate);
 
@@ -26,5 +27,16 @@ public static class StrategyService
   }
 
   return "Sicherheit";
+ }
+
+ private static decimal CalculateExpectedReturn(
+  PlannerSettings settings,
+  StrategyAllocation allocation)
+ {
+  return
+   allocation.Cash * settings.CashInterestRate +
+   allocation.WorldEtf * settings.WorldEtfReturn +
+   allocation.DividendEtf * settings.DividendEtfReturn +
+   allocation.DividendStocks * settings.DividendStocksReturn;
  }
 }

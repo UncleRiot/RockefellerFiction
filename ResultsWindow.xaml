@@ -145,9 +145,9 @@
              BorderThickness="0,0,0,1"
              Padding="10,7">
       <StackPanel>
-       <TextBlock Text="Gesamtbedarf p.a. = Lebenshaltung p.a. + GKV/Pflege gesamt p.a."
+       <TextBlock Text="Gesamtbedarf p.a. = Lebenshaltung p.a. + freiwillige GKV/Pflege gesamt p.a."
                   FontWeight="SemiBold"/>
-       <TextBlock Text="GKV/Pflege gesamt p.a. = (GKV/Pflege P1 mtl. + GKV/Pflege P2 mtl.) × 12"
+       <TextBlock Text="Freiwillige GKV/Pflege gesamt p.a. = (P1 mtl. + P2 mtl.) × 12. GKV/Pflege-Abzüge auf Renten stehen separat unter Gesetzliche Rente."
                   Foreground="{StaticResource MutedTextBrush}"
                   Margin="0,3,0,0"/>
       </StackPanel>
@@ -210,11 +210,13 @@
         <DataGridTextColumn Header="Gesamtbedarf p.a." Binding="{Binding TotalAnnualNeed, StringFormat={}{0:N0} €}" Width="100"/>
         <DataGridTextColumn Header="davon Lebenshaltung p.a." Binding="{Binding LivingCosts, StringFormat={}{0:N0} €}" Width="110"/>
         <DataGridTextColumn Header="Inflationsanstieg p.a." Binding="{Binding LivingCostIncrease, StringFormat={}{0:N0} €}" Width="100"/>
-        <DataGridTextColumn Header="davon GKV/Pflege gesamt p.a." Binding="{Binding HealthCareCosts, StringFormat={}{0:N0} €}" Width="110"/>
-        <DataGridTextColumn Header="GKV/Pflege P1 mtl." Binding="{Binding HealthCareCostsPerson1Monthly, StringFormat={}{0:N0} €}" Width="85"/>
-        <DataGridTextColumn Header="GKV/Pflege P2 mtl." Binding="{Binding HealthCareCostsPerson2Monthly, StringFormat={}{0:N0} €}" Width="85"/>
+        <DataGridTextColumn Header="davon freiwillige GKV/Pflege gesamt p.a." Binding="{Binding HealthCareCosts, StringFormat={}{0:N0} €}" Width="110"/>
+        <DataGridTextColumn Header="freiw. GKV/Pflege P1 mtl." Binding="{Binding HealthCareCostsPerson1Monthly, StringFormat={}{0:N0} €}" Width="85"/>
+        <DataGridTextColumn Header="freiw. GKV/Pflege P2 mtl." Binding="{Binding HealthCareCostsPerson2Monthly, StringFormat={}{0:N0} €}" Width="85"/>
         <DataGridTextColumn Header="Rente brutto p.a." Binding="{Binding PensionGross, StringFormat={}{0:N0} €}" Width="100"/>
+        <DataGridTextColumn Header="GKV/Pflege aus Rente p.a." Binding="{Binding PensionHealthAndCareDeductions, StringFormat={}{0:N0} €}" Width="110"/>
         <DataGridTextColumn Header="Rente netto p.a." Binding="{Binding PensionNet, StringFormat={}{0:N0} €}" Width="100"/>
+        <DataGridTextColumn Header="Nettoeinkommen P2 verwendet p.a." Binding="{Binding FundingFromPerson2Income, StringFormat={}{0:N0} €}" Width="130"/>
         <DataGridTextColumn Header="Dividenden brutto p.a." Binding="{Binding DividendsGross, StringFormat={}{0:N0} €}" Width="105"/>
         <DataGridTextColumn Header="Zinsen brutto p.a." Binding="{Binding InterestGross, StringFormat={}{0:N0} €}" Width="90"/>
         <DataGridTextColumn Header="Entnahme p.a." Binding="{Binding WithdrawnFromCapital, StringFormat={}{0:N0} €}" Width="95"/>
@@ -240,9 +242,9 @@
              BorderThickness="0,0,0,1"
              Padding="10,7">
       <StackPanel>
-       <TextBlock Text="Gesamtbedarf p.a. = Lebenshaltung p.a. + GKV/Pflege gesamt p.a."
+       <TextBlock Text="Gesamtbedarf p.a. = Lebenshaltung p.a. + freiwillige GKV/Pflege gesamt p.a."
                   FontWeight="SemiBold"/>
-       <TextBlock Text="GKV/Pflege gesamt p.a. = (GKV/Pflege P1 mtl. + GKV/Pflege P2 mtl.) × 12"
+       <TextBlock Text="Freiwillige GKV/Pflege gesamt p.a. = (P1 mtl. + P2 mtl.) × 12. GKV/Pflege-Abzüge auf Renten stehen separat unter Gesetzliche Rente."
                   Foreground="{StaticResource MutedTextBrush}"
                   Margin="0,3,0,0"/>
       </StackPanel>
@@ -304,10 +306,12 @@
         <DataGridTextColumn Header="Alter 2" Binding="{Binding Age2}" Width="55"/>
         <DataGridTextColumn Header="Gesamtbedarf p.a." Binding="{Binding TotalAnnualNeed, StringFormat={}{0:N0} €}" Width="100"/>
         <DataGridTextColumn Header="davon Lebenshaltung p.a." Binding="{Binding LivingCosts, StringFormat={}{0:N0} €}" Width="110"/>
-        <DataGridTextColumn Header="davon GKV/Pflege gesamt p.a." Binding="{Binding HealthCareCosts, StringFormat={}{0:N0} €}" Width="110"/>
-        <DataGridTextColumn Header="GKV/Pflege P1 mtl." Binding="{Binding HealthCareCostsPerson1Monthly, StringFormat={}{0:N0} €}" Width="85"/>
-        <DataGridTextColumn Header="GKV/Pflege P2 mtl." Binding="{Binding HealthCareCostsPerson2Monthly, StringFormat={}{0:N0} €}" Width="85"/>
+        <DataGridTextColumn Header="davon freiwillige GKV/Pflege gesamt p.a." Binding="{Binding HealthCareCosts, StringFormat={}{0:N0} €}" Width="110"/>
+        <DataGridTextColumn Header="freiw. GKV/Pflege P1 mtl." Binding="{Binding HealthCareCostsPerson1Monthly, StringFormat={}{0:N0} €}" Width="85"/>
+        <DataGridTextColumn Header="freiw. GKV/Pflege P2 mtl." Binding="{Binding HealthCareCostsPerson2Monthly, StringFormat={}{0:N0} €}" Width="85"/>
+        <DataGridTextColumn Header="GKV/Pflege aus Rente p.a." Binding="{Binding PensionHealthAndCareDeductions, StringFormat={}{0:N0} €}" Width="110"/>
         <DataGridTextColumn Header="Rente netto p.a." Binding="{Binding PensionNet, StringFormat={}{0:N0} €}" Width="100"/>
+        <DataGridTextColumn Header="Nettoeinkommen P2 verwendet p.a." Binding="{Binding FundingFromPerson2Income, StringFormat={}{0:N0} €}" Width="130"/>
         <DataGridTextColumn Header="Dividenden brutto p.a." Binding="{Binding DividendsGross, StringFormat={}{0:N0} €}" Width="105"/>
         <DataGridTextColumn Header="Entnahme p.a." Binding="{Binding WithdrawnFromCapital, StringFormat={}{0:N0} €}" Width="95"/>
         <DataGridTextColumn Header="Steuern Kapital p.a." Binding="{Binding TaxesOnCapital, StringFormat={}{0:N0} €}" Width="100"/>
@@ -329,6 +333,7 @@
       <DataGridTextColumn Header="Jahr" Binding="{Binding Year}" Width="70"/>
       <DataGridTextColumn Header="Gesamtbedarf p.a." Binding="{Binding TotalAnnualNeed, StringFormat={}{0:N0} €}" Width="120"/>
       <DataGridTextColumn Header="aus Rente" Binding="{Binding FundingFromPension, StringFormat={}{0:N0} €}" Width="110"/>
+      <DataGridTextColumn Header="Nettoeinkommen P2" Binding="{Binding FundingFromPerson2Income, StringFormat={}{0:N0} €}" Width="135"/>
       <DataGridTextColumn Header="aus Dividenden" Binding="{Binding FundingFromDividends, StringFormat={}{0:N0} €}" Width="125"/>
       <DataGridTextColumn Header="sonstige Einnahmen" Binding="{Binding FundingFromOtherIncome, StringFormat={}{0:N0} €}" Width="135"/>
       <DataGridTextColumn Header="aus Vermögen" Binding="{Binding FundingFromCapital, StringFormat={}{0:N0} €}" Width="120"/>

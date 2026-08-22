@@ -11,9 +11,36 @@ public static class ProjectionService
   decimal divEtf = s.StartCapital * allocation.DividendEtf;
   decimal divStocks = s.StartCapital * allocation.DividendStocks;
 
-  int finalYear = Math.Max(
-   s.PlanningYear + Math.Max(0, s.Person1EndAge - s.Person1Age),
-   s.PlanningYear + Math.Max(0, s.Person2EndAge - s.Person2Age));
+  decimal worldCostBasis = EstimateInitialCostBasis(
+   world,
+   s.WorldEtfCurrentValue,
+   s.WorldEtfStartYear,
+   s.WorldEtfHistoricalReturn);
+  decimal divEtfCostBasis = EstimateInitialCostBasis(
+   divEtf,
+   s.DividendEtfCurrentValue,
+   s.DividendEtfStartYear,
+   s.DividendEtfHistoricalReturn);
+  decimal divStocksCostBasis = EstimateInitialCostBasis(
+   divStocks,
+   s.DividendStocksCurrentValue,
+   s.DividendStocksStartYear,
+   s.DividendStocksHistoricalReturn);
+
+  decimal equityFundAdvanceLumpSumCarry = 0m;
+  decimal pendingWorldAdvanceLumpSum = 0m;
+  decimal pendingDividendEtfAdvanceLumpSum = 0m;
+  decimal stockLossCarryForward = 0m;
+  decimal otherLossCarryForward = 0m;
+
+  int planningAgePerson1 = GetPlanningAge(s.Person1Age, s.PlanningYear);
+  int planningAgePerson2 = GetPlanningAge(s.Person2Age, s.PlanningYear);
+
+  int finalYear = s.HouseholdPersonCount == 1
+   ? s.PlanningYear + Math.Max(0, s.Person1EndAge - planningAgePerson1)
+   : Math.Max(
+    s.PlanningYear + Math.Max(0, s.Person1EndAge - planningAgePerson1),
+    s.PlanningYear + Math.Max(0, s.Person2EndAge - planningAgePerson2));
 
   bool depleted = false;
   int? depletionYear = null;
@@ -21,8 +48,21 @@ public static class ProjectionService
   for (int year = s.PlanningYear; year <= finalYear; year++)
   {
    int offset = year - s.PlanningYear;
-   int age1 = s.Person1Age + offset;
-   int age2 = s.Person2Age + offset;
+   int age1 = planningAgePerson1 + offset;
+   int age2 = planningAgePerson2 + offset;
+   decimal openingStockLossCarryForward = stockLossCarryForward;
+   decimal openingOtherLossCarryForward = otherLossCarryForward;
+
+   HealthInsuranceProjectionParameters healthInsuranceParameters =
+    PensionService.CalculateHealthInsuranceProjectionParameters(s, year, stress);
+
+   decimal worldAdvanceLumpSumTaxableThisYear = pendingWorldAdvanceLumpSum;
+   decimal dividendEtfAdvanceLumpSumTaxableThisYear = pendingDividendEtfAdvanceLumpSum;
+   decimal equityFundAdvanceLumpSumTaxableThisYear =
+    worldAdvanceLumpSumTaxableThisYear + dividendEtfAdvanceLumpSumTaxableThisYear;
+   equityFundAdvanceLumpSumCarry += equityFundAdvanceLumpSumTaxableThisYear;
+   pendingWorldAdvanceLumpSum = 0m;
+   pendingDividendEtfAdvanceLumpSum = 0m;
 
    decimal inflationFactor = Pow(1m + s.InflationRate, offset);
    decimal living = s.MonthlyLivingCosts * 12m * inflationFactor;
@@ -36,14 +76,14 @@ public static class ProjectionService
    decimal healthInsuranceRelevantCapitalIncome = 0m;
    decimal totalAnnualNeed = living;
 
-   decimal houseReserveAnnual = s.HouseTotalValue * s.HouseBuildingShare * s.HouseReserveRate * inflationFactor;
+   bool houseOwned = !s.HouseIncluded || year <= s.HouseSaleYear;
+   decimal houseReserveAnnual = houseOwned
+    ? s.HouseTotalValue * s.HouseBuildingShare * s.HouseReserveRate * inflationFactor
+    : 0m;
    decimal carReserveAnnual = (s.CarReplacementValue / Math.Max(1, s.CarReplacementYears)) * inflationFactor;
    decimal healthTarget = s.HealthReserveTarget * inflationFactor;
    decimal travelTarget = s.TravelReserveTarget * inflationFactor;
    decimal otherTarget = s.OtherReserveTarget * inflationFactor;
-
-   decimal reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
-                           healthTarget + travelTarget + otherTarget;
 
    decimal portfolioStart = cash + world + divEtf + divStocks;
 
@@ -75,33 +115,102 @@ public static class ProjectionService
    decimal divStocksDistribution = divStocks * s.DividendStocksDistribution;
    decimal dividendsGross = worldDistribution + divEtfDistribution + divStocksDistribution;
 
+   decimal worldValueBeforeSales = Math.Max(0m, world + worldGrossReturn - worldDistribution);
+   decimal divEtfValueBeforeSales = Math.Max(0m, divEtf + divEtfGrossReturn - divEtfDistribution);
+
+   decimal currentYearWorldAdvanceLumpSum =
+    TaxService.CalculateEquityFundAdvanceLumpSum(
+     world,
+     worldValueBeforeSales,
+     worldDistribution,
+     s.AdvanceLumpSumBaseRate);
+   decimal currentYearDividendEtfAdvanceLumpSum =
+    TaxService.CalculateEquityFundAdvanceLumpSum(
+     divEtf,
+     divEtfValueBeforeSales,
+     divEtfDistribution,
+     s.AdvanceLumpSumBaseRate);
+
    healthInsuranceRelevantCapitalIncome =
     Math.Max(0m, cashReturn) +
     Math.Max(0m, worldDistribution) +
     Math.Max(0m, divEtfDistribution) +
     Math.Max(0m, divStocksDistribution);
 
-   decimal capitalIncomePerPersonMonthly = healthInsuranceRelevantCapitalIncome / 2m / 12m;
+   decimal capitalIncomePerPersonAnnual =
+    healthInsuranceRelevantCapitalIncome / Math.Max(1, s.HouseholdPersonCount);
+   decimal capitalIncomePerPersonMonthly = capitalIncomePerPersonAnnual / 12m;
+
+   var pension = PensionService.CalculateAnnualPension(s, year, age1, age2, stress);
 
    if (age1 < s.Person1RetirementAge)
-    healthCarePerson1 = CalculateVoluntaryHealthAndCareAnnual(s, capitalIncomePerPersonMonthly);
+   {
+    healthCarePerson1 = CalculateVoluntaryHealthAndCareAnnual(
+     s,
+     healthInsuranceParameters,
+     capitalIncomePerPersonMonthly);
+   }
+   else if (age1 <= s.Person1EndAge && !s.KvdrPerson1)
+   {
+    healthCarePerson1 = PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+     s,
+     healthInsuranceParameters,
+     pension.Person1Gross,
+     capitalIncomePerPersonAnnual);
+   }
 
-   if (age2 < s.Person2RetirementAge)
-    healthCarePerson2 = CalculateVoluntaryHealthAndCareAnnual(s, capitalIncomePerPersonMonthly);
+   if (s.HouseholdPersonCount == 2 &&
+       year >= GetPerson2WorkEndYear(s))
+   {
+    if (age2 < s.Person2RetirementAge)
+    {
+     healthCarePerson2 = CalculateVoluntaryHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      capitalIncomePerPersonMonthly);
+    }
+    else if (age2 <= s.Person2EndAge && !s.KvdrPerson2)
+    {
+     healthCarePerson2 = PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      pension.Person2Gross,
+      capitalIncomePerPersonAnnual);
+    }
+   }
 
    healthCare = healthCarePerson1 + healthCarePerson2;
    totalAnnualNeed = living + healthCare;
 
-   decimal taxes = TaxService.CalculateCapitalTax(
+   decimal reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
+                           healthTarget + travelTarget + otherTarget;
+
+   decimal realizedStockGains = 0m;
+   decimal realizedEquityFundGains = 0m;
+
+   decimal taxes = TaxService.CalculateCapitalTaxWithFavorableCheck(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
     cashReturn,
     divStocksDistribution,
-    worldDistribution + divEtfDistribution,
-    0m,
-    s.CapitalGainsAllowance);
+    worldDistribution + divEtfDistribution + equityFundAdvanceLumpSumTaxableThisYear,
+    realizedStockGains,
+    realizedEquityFundGains,
+    GetEffectiveCapitalGainsAllowance(s, year),
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out _,
+    out _);
 
    decimal taxableCashWeight = Math.Max(0m, cashReturn);
-   decimal taxableWorldWeight = Math.Max(0m, worldDistribution) * 0.70m;
-   decimal taxableDivEtfWeight = Math.Max(0m, divEtfDistribution) * 0.70m;
+   decimal taxableWorldWeight =
+    (Math.Max(0m, worldDistribution) + worldAdvanceLumpSumTaxableThisYear) * 0.70m;
+   decimal taxableDivEtfWeight =
+    (Math.Max(0m, divEtfDistribution) + dividendEtfAdvanceLumpSumTaxableThisYear) * 0.70m;
    decimal taxableDivStocksWeight = Math.Max(0m, divStocksDistribution);
    decimal taxableWeightTotal =
     taxableCashWeight + taxableWorldWeight + taxableDivEtfWeight + taxableDivStocksWeight;
@@ -116,7 +225,7 @@ public static class ProjectionService
    decimal divEtfNetIncome = Math.Max(0m, divEtfDistribution - divEtfTax);
    decimal divStocksNetIncome = Math.Max(0m, divStocksDistribution - divStocksTax);
 
-   var pension = PensionService.CalculateAnnualPension(s, year, age1, age2);
+   decimal person2NetEmploymentIncome = CalculatePerson2NetEmploymentIncome(s, year);
 
    decimal oneTimeIncome = SumCashFlows(s.OneTimeIncome, year, s.PlanningYear, s.InflationRate);
    if (s.HouseIncluded && s.HouseSaleYear == year)
@@ -124,18 +233,34 @@ public static class ProjectionService
 
    decimal oneTimeExpenses = SumCashFlows(s.OneTimeExpenses, year, s.PlanningYear, s.InflationRate);
 
-   world = Math.Max(0m, world + worldGrossReturn - worldDistribution);
-   divEtf = Math.Max(0m, divEtf + divEtfGrossReturn - divEtfDistribution);
+   world = worldValueBeforeSales;
+   divEtf = divEtfValueBeforeSales;
    divStocks = Math.Max(0m, divStocks + divStocksGrossReturn - divStocksDistribution);
    cash = Math.Max(0m, cash + cashReturn);
+
+   if (world <= 0m)
+    worldCostBasis = 0m;
+   if (divEtf <= 0m)
+    divEtfCostBasis = 0m;
+   if (divStocks <= 0m)
+    divStocksCostBasis = 0m;
 
    decimal requiredForYear = totalAnnualNeed + oneTimeExpenses + taxes;
 
    decimal fundingFromPension = Math.Min(Math.Max(0m, pension.Net), requiredForYear);
    decimal remainingAfterPension = Math.Max(0m, requiredForYear - fundingFromPension);
 
-   decimal fundingFromOtherIncome = Math.Min(Math.Max(0m, oneTimeIncome), remainingAfterPension);
-   decimal remainingAfterOtherIncome = Math.Max(0m, remainingAfterPension - fundingFromOtherIncome);
+   decimal fundingFromPerson2Income =
+    Math.Min(Math.Max(0m, person2NetEmploymentIncome), remainingAfterPension);
+   decimal remainingAfterPerson2Income =
+    Math.Max(0m, remainingAfterPension - fundingFromPerson2Income);
+
+   decimal fundingFromOtherIncome = Math.Min(Math.Max(0m, oneTimeIncome), remainingAfterPerson2Income);
+   decimal remainingAfterOtherIncome = Math.Max(0m, remainingAfterPerson2Income - fundingFromOtherIncome);
+
+   cash += Math.Max(0m, pension.Net - fundingFromPension);
+   cash += Math.Max(0m, person2NetEmploymentIncome - fundingFromPerson2Income);
+   cash += Math.Max(0m, oneTimeIncome - fundingFromOtherIncome);
 
    decimal availableDividends = Math.Max(0m, dividendsGross);
    decimal fundingFromDividends = Math.Min(availableDividends, remainingAfterOtherIncome);
@@ -156,20 +281,22 @@ public static class ProjectionService
 
    if (need > 0m)
    {
-    decimal risky = world + divEtf + divStocks;
-    if (risky > 0m)
-    {
-     decimal take = Math.Min(risky, need);
-     decimal wShare = world / risky;
-     decimal eShare = divEtf / risky;
-     decimal sShare = divStocks / risky;
+    decimal sold = SellRiskyAssets(
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     need,
+     out decimal realizedStockGain,
+     out decimal realizedEquityFundGain);
 
-     world = Math.Max(0m, world - take * wShare);
-     divEtf = Math.Max(0m, divEtf - take * eShare);
-     divStocks = Math.Max(0m, divStocks - take * sShare);
-     withdrawn += take;
-     need -= take;
-    }
+    realizedStockGains += realizedStockGain;
+    realizedEquityFundGains += realizedEquityFundGain;
+    withdrawn += sold;
+    need -= sold;
    }
 
    decimal fundingGap = Math.Max(0m, need);
@@ -178,32 +305,248 @@ public static class ProjectionService
    if (s.AutoRefillReserve && cash < reserveTarget &&
        (!s.UseReserveOnNegativeStockYear || !stockYearNegative))
    {
-    decimal missing = reserveTarget - cash;
-    decimal risky = world + divEtf + divStocks;
+    decimal refill = SellRiskyAssets(
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     reserveTarget - cash,
+     out decimal realizedStockGain,
+     out decimal realizedEquityFundGain);
 
-    if (risky > 0m)
+    realizedStockGains += realizedStockGain;
+    realizedEquityFundGains += realizedEquityFundGain;
+    cash += refill;
+   }
+
+   taxes = SettleCapitalTaxAfterSales(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
+    cashReturn,
+    divStocksDistribution,
+    worldDistribution + divEtfDistribution + equityFundAdvanceLumpSumTaxableThisYear,
+    ref cash,
+    ref world,
+    ref worldCostBasis,
+    ref divEtf,
+    ref divEtfCostBasis,
+    ref divStocks,
+    ref divStocksCostBasis,
+    ref equityFundAdvanceLumpSumCarry,
+    ref realizedStockGains,
+    ref realizedEquityFundGains,
+    ref withdrawn,
+    taxes,
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out decimal taxFundingGap);
+
+   fundingGap += taxFundingGap;
+
+   for (int pass = 0; pass < 32; pass++)
+   {
+    decimal realizedCapitalIncomeForHealthInsurance =
+     Math.Max(0m, realizedStockGains) +
+     Math.Max(0m, realizedEquityFundGains) * 0.70m;
+
+    decimal finalCapitalIncomePerPersonAnnual =
+     (healthInsuranceRelevantCapitalIncome + realizedCapitalIncomeForHealthInsurance) /
+     Math.Max(1, s.HouseholdPersonCount);
+    decimal finalCapitalIncomePerPersonMonthly =
+     finalCapitalIncomePerPersonAnnual / 12m;
+
+    decimal targetHealthCarePerson1 = 0m;
+    decimal targetHealthCarePerson2 = 0m;
+
+    if (age1 < s.Person1RetirementAge)
     {
-     decimal refill = Math.Min(missing, risky);
-     decimal wShare = world / risky;
-     decimal eShare = divEtf / risky;
-     decimal sShare = divStocks / risky;
+     targetHealthCarePerson1 = CalculateVoluntaryHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      finalCapitalIncomePerPersonMonthly);
+    }
+    else if (age1 <= s.Person1EndAge && !s.KvdrPerson1)
+    {
+     targetHealthCarePerson1 = PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      pension.Person1Gross,
+      finalCapitalIncomePerPersonAnnual);
+    }
 
-     world -= refill * wShare;
-     divEtf -= refill * eShare;
-     divStocks -= refill * sShare;
+    if (s.HouseholdPersonCount == 2 &&
+        year >= GetPerson2WorkEndYear(s))
+    {
+     if (age2 < s.Person2RetirementAge)
+     {
+      targetHealthCarePerson2 = CalculateVoluntaryHealthAndCareAnnual(
+       s,
+       healthInsuranceParameters,
+       finalCapitalIncomePerPersonMonthly);
+     }
+     else if (age2 <= s.Person2EndAge && !s.KvdrPerson2)
+     {
+      targetHealthCarePerson2 = PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+       s,
+       healthInsuranceParameters,
+       pension.Person2Gross,
+       finalCapitalIncomePerPersonAnnual);
+     }
+    }
+
+    decimal additionalHealthCare =
+     Math.Max(0m, targetHealthCarePerson1 - healthCarePerson1) +
+     Math.Max(0m, targetHealthCarePerson2 - healthCarePerson2);
+
+    healthCarePerson1 = Math.Max(healthCarePerson1, targetHealthCarePerson1);
+    healthCarePerson2 = Math.Max(healthCarePerson2, targetHealthCarePerson2);
+    healthCare = healthCarePerson1 + healthCarePerson2;
+    totalAnnualNeed = living + healthCare;
+    reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
+                    healthTarget + travelTarget + otherTarget;
+
+    if (additionalHealthCare > 0.01m)
+    {
+     decimal remainingHealthCare = additionalHealthCare;
+
+     decimal fromCash = Math.Min(cash, remainingHealthCare);
+     cash -= fromCash;
+     remainingHealthCare -= fromCash;
+     withdrawn += fromCash;
+
+     if (remainingHealthCare > 0.01m)
+     {
+      decimal sold = SellRiskyAssets(
+       ref world,
+       ref worldCostBasis,
+       ref divEtf,
+       ref divEtfCostBasis,
+       ref divStocks,
+       ref divStocksCostBasis,
+       ref equityFundAdvanceLumpSumCarry,
+       remainingHealthCare,
+       out decimal realizedStockGain,
+       out decimal realizedEquityFundGain);
+
+      realizedStockGains += realizedStockGain;
+      realizedEquityFundGains += realizedEquityFundGain;
+      withdrawn += sold;
+      remainingHealthCare -= sold;
+     }
+
+     fundingGap += Math.Max(0m, remainingHealthCare);
+    }
+
+    if (s.AutoRefillReserve && cash < reserveTarget &&
+        (!s.UseReserveOnNegativeStockYear || !stockYearNegative))
+    {
+     decimal refill = SellRiskyAssets(
+      ref world,
+      ref worldCostBasis,
+      ref divEtf,
+      ref divEtfCostBasis,
+      ref divStocks,
+      ref divStocksCostBasis,
+      ref equityFundAdvanceLumpSumCarry,
+      reserveTarget - cash,
+      out decimal realizedStockGain,
+      out decimal realizedEquityFundGain);
+
+     realizedStockGains += realizedStockGain;
+     realizedEquityFundGains += realizedEquityFundGain;
      cash += refill;
     }
+
+    if (fundingGap > 0.01m)
+     break;
+
+    decimal taxesBeforeHealthSettlement = taxes;
+    taxes = SettleCapitalTaxAfterSales(
+     s,
+     year,
+     age1,
+     age2,
+     pension.TaxableIncome1,
+     pension.TaxableIncome2,
+     cashReturn,
+     divStocksDistribution,
+     worldDistribution + divEtfDistribution + equityFundAdvanceLumpSumTaxableThisYear,
+     ref cash,
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     ref realizedStockGains,
+     ref realizedEquityFundGains,
+     ref withdrawn,
+     taxes,
+     openingStockLossCarryForward,
+     openingOtherLossCarryForward,
+     out decimal additionalTaxFundingGap);
+
+    fundingGap += additionalTaxFundingGap;
+
+    if (additionalHealthCare <= 0.01m &&
+        Math.Abs(taxes - taxesBeforeHealthSettlement) <= 0.01m)
+     break;
    }
+
+   _ = TaxService.CalculateCapitalTaxWithFavorableCheck(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
+    cashReturn,
+    divStocksDistribution,
+    worldDistribution + divEtfDistribution + equityFundAdvanceLumpSumTaxableThisYear,
+    realizedStockGains,
+    realizedEquityFundGains,
+    GetEffectiveCapitalGainsAllowance(s, year),
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out stockLossCarryForward,
+    out otherLossCarryForward);
+
+   healthInsuranceRelevantCapitalIncome +=
+    Math.Max(0m, realizedStockGains) +
+    Math.Max(0m, realizedEquityFundGains) * 0.70m;
+   requiredForYear = totalAnnualNeed + oneTimeExpenses + taxes;
+
+   pendingWorldAdvanceLumpSum = worldValueBeforeSales > 0m
+    ? currentYearWorldAdvanceLumpSum * Math.Min(1m, world / worldValueBeforeSales)
+    : 0m;
+   pendingDividendEtfAdvanceLumpSum = divEtfValueBeforeSales > 0m
+    ? currentYearDividendEtfAdvanceLumpSum * Math.Min(1m, divEtf / divEtfValueBeforeSales)
+    : 0m;
 
    decimal portfolioEnd = cash + world + divEtf + divStocks;
 
-   if (!depleted && portfolioEnd <= 0.01m && year < finalYear)
+   if (!depleted && (fundingGap > 0m || (portfolioEnd <= 0.01m && year < finalYear)))
    {
     depleted = true;
     depletionYear = year;
    }
 
-   string yearStatus = portfolioEnd <= 0.01m ? "Rot" : cash < reserveTarget ? "Gelb" : "Grün";
+   string yearStatus =
+    fundingGap > 0m || (portfolioEnd <= 0.01m && year < finalYear)
+     ? "Rot"
+     : year == finalYear
+      ? "Grün"
+      : cash < reserveTarget
+       ? "Gelb"
+       : "Grün";
 
    result.Years.Add(new YearResult
    {
@@ -218,17 +561,35 @@ public static class ProjectionService
     HealthCareCostsPerson1Monthly = healthCarePerson1 / 12m,
     HealthCareCostsPerson2Monthly = healthCarePerson2 / 12m,
     HealthInsuranceRelevantCapitalIncome = healthInsuranceRelevantCapitalIncome,
+    HealthInsuranceMinimumMonthlyIncomeApplied = healthInsuranceParameters.MinimumMonthlyIncome,
+    HealthInsuranceMaximumMonthlyIncomeApplied = healthInsuranceParameters.MaximumMonthlyIncome,
+    HealthInsuranceAdditionalRateApplied = healthInsuranceParameters.AdditionalRate,
+    CareInsuranceRateApplied = healthInsuranceParameters.CareRate,
     TotalAnnualNeed = totalAnnualNeed,
     ReserveTarget = reserveTarget,
     ReserveActual = cash,
     PensionGross = pension.Gross,
     PensionNet = pension.Net,
+    PensionHealthAndCareDeductions = pension.HealthAndCareDeductions,
+    PensionIncomeTax = pension.IncomeTax,
     DividendsGross = dividendsGross,
     InterestGross = cashReturn,
     TaxesOnCapital = taxes,
+    CapitalGainsAllowanceApplied = GetEffectiveCapitalGainsAllowance(s, year),
+    AdvanceLumpSumTaxableThisYear = equityFundAdvanceLumpSumTaxableThisYear,
+    AdvanceLumpSumCalculatedForNextYear = pendingWorldAdvanceLumpSum + pendingDividendEtfAdvanceLumpSum,
+    RealizedStockGains = realizedStockGains,
+    RealizedEquityFundGains = realizedEquityFundGains,
+    StockLossCarryForward = stockLossCarryForward,
+    OtherLossCarryForward = otherLossCarryForward,
+    OneTimeIncome = oneTimeIncome,
+    OneTimeExpenses = oneTimeExpenses,
+    RequiredForYear = requiredForYear,
     NetDividends = availableDividends,
     FundingFromPension = fundingFromPension,
     FundingFromDividends = fundingFromDividends,
+    Person2NetEmploymentIncome = person2NetEmploymentIncome,
+    FundingFromPerson2Income = fundingFromPerson2Income,
     FundingFromOtherIncome = fundingFromOtherIncome,
     FundingFromCapital = withdrawn,
     FundingGap = fundingGap,
@@ -263,7 +624,7 @@ public static class ProjectionService
   }
 
   result.FinalCapital = result.Years.LastOrDefault()?.TotalPortfolioEnd ?? 0m;
-  result.ReachesPlanEnd = !depleted && result.FinalCapital >= 0m;
+  result.ReachesPlanEnd = !depleted;
   result.DepletionYear = depletionYear;
   result.InitialRequiredCash = result.Years.FirstOrDefault()?.ReserveTarget ?? 0m;
 
@@ -293,15 +654,34 @@ public static class ProjectionService
    divEtfDistribution +
    divStocksDistribution;
 
-  decimal monthlyCapitalIncomePerPerson = relevantCapitalIncome / 2m / 12m;
+  decimal monthlyCapitalIncomePerPerson =
+   relevantCapitalIncome / Math.Max(1, s.HouseholdPersonCount) / 12m;
 
-  decimal person1Monthly = s.Person1Age < s.Person1RetirementAge
-   ? CalculateVoluntaryHealthAndCareAnnual(s, monthlyCapitalIncomePerPerson) / 12m
+  int planningAgePerson1 = GetPlanningAge(s.Person1Age, s.PlanningYear);
+  int planningAgePerson2 = GetPlanningAge(s.Person2Age, s.PlanningYear);
+
+  HealthInsuranceProjectionParameters healthInsuranceParameters =
+   PensionService.CalculateHealthInsuranceProjectionParameters(
+    s,
+    s.PlanningYear,
+    false);
+
+  decimal person1Monthly = planningAgePerson1 < s.Person1RetirementAge
+   ? CalculateVoluntaryHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      monthlyCapitalIncomePerPerson) / 12m
    : 0m;
 
-  decimal person2Monthly = s.Person2Age < s.Person2RetirementAge
-   ? CalculateVoluntaryHealthAndCareAnnual(s, monthlyCapitalIncomePerPerson) / 12m
-   : 0m;
+  decimal person2Monthly =
+   s.HouseholdPersonCount == 2 &&
+   s.PlanningYear >= GetPerson2WorkEndYear(s) &&
+   planningAgePerson2 < s.Person2RetirementAge
+    ? CalculateVoluntaryHealthAndCareAnnual(
+       s,
+       healthInsuranceParameters,
+       monthlyCapitalIncomePerPerson) / 12m
+    : 0m;
 
   return new HealthInsurancePreview(person1Monthly, person2Monthly);
  }
@@ -311,7 +691,7 @@ public static class ProjectionService
   StrategyAllocation allocation,
   bool stress)
  {
-  return CalculateCoreWithoutEstimate(settings, allocation, stress) > 0.01m;
+  return CalculateCoreWithoutEstimate(settings, allocation, stress) >= 0m;
  }
 
  private static decimal EstimateMinimumStartCapital(PlannerSettings s, StrategyAllocation allocation, bool stress)
@@ -346,7 +726,7 @@ public static class ProjectionService
  private static bool CalculateSimple(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
   var r = CalculateCoreWithoutEstimate(s, allocation, stress);
-  return r > 0.01m;
+  return r >= 0m;
  }
 
  private static decimal CalculateCoreWithoutEstimate(PlannerSettings s, StrategyAllocation allocation, bool stress)
@@ -356,18 +736,68 @@ public static class ProjectionService
   decimal divEtf = s.StartCapital * allocation.DividendEtf;
   decimal divStocks = s.StartCapital * allocation.DividendStocks;
 
-  int finalYear = Math.Max(
-   s.PlanningYear + Math.Max(0, s.Person1EndAge - s.Person1Age),
-   s.PlanningYear + Math.Max(0, s.Person2EndAge - s.Person2Age));
+  decimal worldCostBasis = EstimateInitialCostBasis(
+   world,
+   s.WorldEtfCurrentValue,
+   s.WorldEtfStartYear,
+   s.WorldEtfHistoricalReturn);
+  decimal divEtfCostBasis = EstimateInitialCostBasis(
+   divEtf,
+   s.DividendEtfCurrentValue,
+   s.DividendEtfStartYear,
+   s.DividendEtfHistoricalReturn);
+  decimal divStocksCostBasis = EstimateInitialCostBasis(
+   divStocks,
+   s.DividendStocksCurrentValue,
+   s.DividendStocksStartYear,
+   s.DividendStocksHistoricalReturn);
+
+  decimal equityFundAdvanceLumpSumCarry = 0m;
+  decimal pendingWorldAdvanceLumpSum = 0m;
+  decimal pendingDividendEtfAdvanceLumpSum = 0m;
+  decimal stockLossCarryForward = 0m;
+  decimal otherLossCarryForward = 0m;
+
+  int planningAgePerson1 = GetPlanningAge(s.Person1Age, s.PlanningYear);
+  int planningAgePerson2 = GetPlanningAge(s.Person2Age, s.PlanningYear);
+
+  int finalYear = s.HouseholdPersonCount == 1
+   ? s.PlanningYear + Math.Max(0, s.Person1EndAge - planningAgePerson1)
+   : Math.Max(
+    s.PlanningYear + Math.Max(0, s.Person1EndAge - planningAgePerson1),
+    s.PlanningYear + Math.Max(0, s.Person2EndAge - planningAgePerson2));
 
   for (int year = s.PlanningYear; year <= finalYear; year++)
   {
    int offset = year - s.PlanningYear;
-   int age1 = s.Person1Age + offset;
-   int age2 = s.Person2Age + offset;
+   int age1 = planningAgePerson1 + offset;
+   int age2 = planningAgePerson2 + offset;
+   decimal openingStockLossCarryForward = stockLossCarryForward;
+   decimal openingOtherLossCarryForward = otherLossCarryForward;
+
+   HealthInsuranceProjectionParameters healthInsuranceParameters =
+    PensionService.CalculateHealthInsuranceProjectionParameters(s, year, stress);
+
+   decimal worldAdvanceLumpSumTaxableThisYear = pendingWorldAdvanceLumpSum;
+   decimal dividendEtfAdvanceLumpSumTaxableThisYear = pendingDividendEtfAdvanceLumpSum;
+   decimal equityFundAdvanceLumpSumTaxableThisYear =
+    worldAdvanceLumpSumTaxableThisYear + dividendEtfAdvanceLumpSumTaxableThisYear;
+   equityFundAdvanceLumpSumCarry += equityFundAdvanceLumpSumTaxableThisYear;
+   pendingWorldAdvanceLumpSum = 0m;
+   pendingDividendEtfAdvanceLumpSum = 0m;
+
    decimal factor = Pow(1m + s.InflationRate, offset);
    decimal living = s.MonthlyLivingCosts * 12m * factor;
    decimal healthCare = 0m;
+
+   bool houseOwned = !s.HouseIncluded || year <= s.HouseSaleYear;
+   decimal houseReserveAnnual = houseOwned
+    ? s.HouseTotalValue * s.HouseBuildingShare * s.HouseReserveRate * factor
+    : 0m;
+   decimal carReserveAnnual = (s.CarReplacementValue / Math.Max(1, s.CarReplacementYears)) * factor;
+   decimal healthTarget = s.HealthReserveTarget * factor;
+   decimal travelTarget = s.TravelReserveTarget * factor;
+   decimal otherTarget = s.OtherReserveTarget * factor;
 
    decimal wr = s.WorldEtfReturn;
    decimal er = s.DividendEtfReturn;
@@ -375,11 +805,16 @@ public static class ProjectionService
 
    if (stress && s.StressCrashAtStart && offset == 0)
    {
-    wr += s.StressCrashPercent; er += s.StressCrashPercent; sr += s.StressCrashPercent;
+    wr += s.StressCrashPercent;
+    er += s.StressCrashPercent;
+    sr += s.StressCrashPercent;
    }
+
    if (stress && s.StressSecondCrashEnabled && year == s.StressSecondCrashYear)
    {
-    wr += s.StressSecondCrashPercent; er += s.StressSecondCrashPercent; sr += s.StressSecondCrashPercent;
+    wr += s.StressSecondCrashPercent;
+    er += s.StressSecondCrashPercent;
+    sr += s.StressSecondCrashPercent;
    }
 
    decimal interest = cash * s.CashInterestRate;
@@ -387,29 +822,137 @@ public static class ProjectionService
    decimal ed = divEtf * s.DividendEtfDistribution;
    decimal sd = divStocks * s.DividendStocksDistribution;
 
+   decimal worldValueBeforeSales = Math.Max(0m, world + world * wr - wd);
+   decimal divEtfValueBeforeSales = Math.Max(0m, divEtf + divEtf * er - ed);
+
+   decimal currentYearWorldAdvanceLumpSum =
+    TaxService.CalculateEquityFundAdvanceLumpSum(
+     world,
+     worldValueBeforeSales,
+     wd,
+     s.AdvanceLumpSumBaseRate);
+   decimal currentYearDividendEtfAdvanceLumpSum =
+    TaxService.CalculateEquityFundAdvanceLumpSum(
+     divEtf,
+     divEtfValueBeforeSales,
+     ed,
+     s.AdvanceLumpSumBaseRate);
+
    decimal healthInsuranceRelevantCapitalIncome =
     Math.Max(0m, interest) +
     Math.Max(0m, wd) +
     Math.Max(0m, ed) +
     Math.Max(0m, sd);
 
-   decimal capitalIncomePerPersonMonthly = healthInsuranceRelevantCapitalIncome / 2m / 12m;
+   decimal capitalIncomePerPersonAnnual =
+    healthInsuranceRelevantCapitalIncome / Math.Max(1, s.HouseholdPersonCount);
+   decimal capitalIncomePerPersonMonthly = capitalIncomePerPersonAnnual / 12m;
+
+   var pension = PensionService.CalculateAnnualPension(s, year, age1, age2, stress);
 
    if (age1 < s.Person1RetirementAge)
-    healthCare += CalculateVoluntaryHealthAndCareAnnual(s, capitalIncomePerPersonMonthly);
+   {
+    healthCare += CalculateVoluntaryHealthAndCareAnnual(
+     s,
+     healthInsuranceParameters,
+     capitalIncomePerPersonMonthly);
+   }
+   else if (age1 <= s.Person1EndAge && !s.KvdrPerson1)
+   {
+    healthCare += PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+     s,
+     healthInsuranceParameters,
+     pension.Person1Gross,
+     capitalIncomePerPersonAnnual);
+   }
 
-   if (age2 < s.Person2RetirementAge)
-    healthCare += CalculateVoluntaryHealthAndCareAnnual(s, capitalIncomePerPersonMonthly);
+   if (s.HouseholdPersonCount == 2 &&
+       year >= GetPerson2WorkEndYear(s))
+   {
+    if (age2 < s.Person2RetirementAge)
+    {
+     healthCare += CalculateVoluntaryHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      capitalIncomePerPersonMonthly);
+    }
+    else if (age2 <= s.Person2EndAge && !s.KvdrPerson2)
+    {
+     healthCare += PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      pension.Person2Gross,
+      capitalIncomePerPersonAnnual);
+    }
+   }
 
-   decimal taxes = TaxService.CalculateCapitalTax(interest, sd, wd + ed, 0m, s.CapitalGainsAllowance);
-   var pension = PensionService.CalculateAnnualPension(s, year, age1, age2);
+   decimal totalAnnualNeed = living + healthCare;
+   decimal reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
+                           healthTarget + travelTarget + otherTarget;
 
-   cash += interest;
-   world = Math.Max(0m, world + world * wr - wd);
-   divEtf = Math.Max(0m, divEtf + divEtf * er - ed);
+   decimal realizedStockGains = 0m;
+   decimal realizedEquityFundGains = 0m;
+
+   decimal taxes = TaxService.CalculateCapitalTaxWithFavorableCheck(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
+    interest,
+    sd,
+    wd + ed + equityFundAdvanceLumpSumTaxableThisYear,
+    realizedStockGains,
+    realizedEquityFundGains,
+    GetEffectiveCapitalGainsAllowance(s, year),
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out _,
+    out _);
+   decimal person2NetEmploymentIncome = CalculatePerson2NetEmploymentIncome(s, year);
+
+   decimal oneTimeIncome = SumCashFlows(s.OneTimeIncome, year, s.PlanningYear, s.InflationRate);
+   if (s.HouseIncluded && s.HouseSaleYear == year)
+    oneTimeIncome += s.HouseNetSaleProceeds;
+
+   decimal oneTimeExpenses = SumCashFlows(s.OneTimeExpenses, year, s.PlanningYear, s.InflationRate);
+
+   cash = Math.Max(0m, cash + interest);
+   world = worldValueBeforeSales;
+   divEtf = divEtfValueBeforeSales;
    divStocks = Math.Max(0m, divStocks + divStocks * sr - sd);
 
-   decimal need = living + healthCare + taxes - pension.Net - Math.Max(0m, wd + ed + sd);
+   if (world <= 0m)
+    worldCostBasis = 0m;
+   if (divEtf <= 0m)
+    divEtfCostBasis = 0m;
+   if (divStocks <= 0m)
+    divStocksCostBasis = 0m;
+
+   decimal requiredForYear = totalAnnualNeed + oneTimeExpenses + taxes;
+
+   decimal fundingFromPension = Math.Min(Math.Max(0m, pension.Net), requiredForYear);
+   decimal remainingAfterPension = Math.Max(0m, requiredForYear - fundingFromPension);
+
+   decimal fundingFromPerson2Income =
+    Math.Min(Math.Max(0m, person2NetEmploymentIncome), remainingAfterPension);
+   decimal remainingAfterPerson2Income =
+    Math.Max(0m, remainingAfterPension - fundingFromPerson2Income);
+
+   decimal fundingFromOtherIncome = Math.Min(Math.Max(0m, oneTimeIncome), remainingAfterPerson2Income);
+   decimal remainingAfterOtherIncome = Math.Max(0m, remainingAfterPerson2Income - fundingFromOtherIncome);
+
+   cash += Math.Max(0m, pension.Net - fundingFromPension);
+   cash += Math.Max(0m, person2NetEmploymentIncome - fundingFromPerson2Income);
+   cash += Math.Max(0m, oneTimeIncome - fundingFromOtherIncome);
+
+   decimal availableDividends = Math.Max(0m, wd + ed + sd);
+   decimal fundingFromDividends = Math.Min(availableDividends, remainingAfterOtherIncome);
+   decimal need = Math.Max(0m, remainingAfterOtherIncome - fundingFromDividends);
+
+   if (s.DividendSurplusReinvest)
+    cash += Math.Max(0m, availableDividends - fundingFromDividends);
 
    if (need > 0m)
    {
@@ -420,38 +963,504 @@ public static class ProjectionService
 
    if (need > 0m)
    {
-    decimal risky = world + divEtf + divStocks;
-    if (risky <= 0m) return 0m;
+    decimal sold = SellRiskyAssets(
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     need,
+     out decimal realizedStockGain,
+     out decimal realizedEquityFundGain);
 
-    decimal take = Math.Min(risky, need);
-    world -= take * (world / risky);
-    divEtf -= take * (divEtf / risky);
-    divStocks -= take * (divStocks / risky);
+    realizedStockGains += realizedStockGain;
+    realizedEquityFundGains += realizedEquityFundGain;
+    need -= sold;
    }
 
+   if (need > 0m)
+    return -1m;
+
+   bool stockYearNegative = wr < 0m || er < 0m || sr < 0m;
+   if (s.AutoRefillReserve && cash < reserveTarget &&
+       (!s.UseReserveOnNegativeStockYear || !stockYearNegative))
+   {
+    decimal refill = SellRiskyAssets(
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     reserveTarget - cash,
+     out decimal realizedStockGain,
+     out decimal realizedEquityFundGain);
+
+    realizedStockGains += realizedStockGain;
+    realizedEquityFundGains += realizedEquityFundGain;
+    cash += refill;
+   }
+
+   decimal taxWithdrawn = 0m;
+   taxes = SettleCapitalTaxAfterSales(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
+    interest,
+    sd,
+    wd + ed + equityFundAdvanceLumpSumTaxableThisYear,
+    ref cash,
+    ref world,
+    ref worldCostBasis,
+    ref divEtf,
+    ref divEtfCostBasis,
+    ref divStocks,
+    ref divStocksCostBasis,
+    ref equityFundAdvanceLumpSumCarry,
+    ref realizedStockGains,
+    ref realizedEquityFundGains,
+    ref taxWithdrawn,
+    taxes,
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out decimal taxFundingGap);
+
+   if (taxFundingGap > 0.01m)
+    return -1m;
+
+   for (int pass = 0; pass < 32; pass++)
+   {
+    decimal realizedCapitalIncomeForHealthInsurance =
+     Math.Max(0m, realizedStockGains) +
+     Math.Max(0m, realizedEquityFundGains) * 0.70m;
+
+    decimal finalCapitalIncomePerPersonAnnual =
+     (healthInsuranceRelevantCapitalIncome + realizedCapitalIncomeForHealthInsurance) /
+     Math.Max(1, s.HouseholdPersonCount);
+    decimal finalCapitalIncomePerPersonMonthly =
+     finalCapitalIncomePerPersonAnnual / 12m;
+
+    decimal targetHealthCare = 0m;
+
+    if (age1 < s.Person1RetirementAge)
+    {
+     targetHealthCare += CalculateVoluntaryHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      finalCapitalIncomePerPersonMonthly);
+    }
+    else if (age1 <= s.Person1EndAge && !s.KvdrPerson1)
+    {
+     targetHealthCare += PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+      s,
+      healthInsuranceParameters,
+      pension.Person1Gross,
+      finalCapitalIncomePerPersonAnnual);
+    }
+
+    if (s.HouseholdPersonCount == 2 &&
+        year >= GetPerson2WorkEndYear(s))
+    {
+     if (age2 < s.Person2RetirementAge)
+     {
+      targetHealthCare += CalculateVoluntaryHealthAndCareAnnual(
+       s,
+       healthInsuranceParameters,
+       finalCapitalIncomePerPersonMonthly);
+     }
+     else if (age2 <= s.Person2EndAge && !s.KvdrPerson2)
+     {
+      targetHealthCare += PensionService.CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
+       s,
+       healthInsuranceParameters,
+       pension.Person2Gross,
+       finalCapitalIncomePerPersonAnnual);
+     }
+    }
+
+    decimal additionalHealthCare = Math.Max(0m, targetHealthCare - healthCare);
+
+    healthCare = Math.Max(healthCare, targetHealthCare);
+    totalAnnualNeed = living + healthCare;
+    reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
+                    healthTarget + travelTarget + otherTarget;
+
+    if (additionalHealthCare > 0.01m)
+    {
+     decimal remainingHealthCare = additionalHealthCare;
+
+     decimal fromCash = Math.Min(cash, remainingHealthCare);
+     cash -= fromCash;
+     remainingHealthCare -= fromCash;
+
+     if (remainingHealthCare > 0.01m)
+     {
+      decimal sold = SellRiskyAssets(
+       ref world,
+       ref worldCostBasis,
+       ref divEtf,
+       ref divEtfCostBasis,
+       ref divStocks,
+       ref divStocksCostBasis,
+       ref equityFundAdvanceLumpSumCarry,
+       remainingHealthCare,
+       out decimal realizedStockGain,
+       out decimal realizedEquityFundGain);
+
+      realizedStockGains += realizedStockGain;
+      realizedEquityFundGains += realizedEquityFundGain;
+      remainingHealthCare -= sold;
+     }
+
+     if (remainingHealthCare > 0.01m)
+      return -1m;
+    }
+
+    if (s.AutoRefillReserve && cash < reserveTarget &&
+        (!s.UseReserveOnNegativeStockYear || !stockYearNegative))
+    {
+     decimal refill = SellRiskyAssets(
+      ref world,
+      ref worldCostBasis,
+      ref divEtf,
+      ref divEtfCostBasis,
+      ref divStocks,
+      ref divStocksCostBasis,
+      ref equityFundAdvanceLumpSumCarry,
+      reserveTarget - cash,
+      out decimal realizedStockGain,
+      out decimal realizedEquityFundGain);
+
+     realizedStockGains += realizedStockGain;
+     realizedEquityFundGains += realizedEquityFundGain;
+     cash += refill;
+    }
+
+    decimal taxesBeforeHealthSettlement = taxes;
+    taxes = SettleCapitalTaxAfterSales(
+     s,
+     year,
+     age1,
+     age2,
+     pension.TaxableIncome1,
+     pension.TaxableIncome2,
+     interest,
+     sd,
+     wd + ed + equityFundAdvanceLumpSumTaxableThisYear,
+     ref cash,
+     ref world,
+     ref worldCostBasis,
+     ref divEtf,
+     ref divEtfCostBasis,
+     ref divStocks,
+     ref divStocksCostBasis,
+     ref equityFundAdvanceLumpSumCarry,
+     ref realizedStockGains,
+     ref realizedEquityFundGains,
+     ref taxWithdrawn,
+     taxes,
+     openingStockLossCarryForward,
+     openingOtherLossCarryForward,
+     out decimal additionalTaxFundingGap);
+
+    if (additionalTaxFundingGap > 0.01m)
+     return -1m;
+
+    if (additionalHealthCare <= 0.01m &&
+        Math.Abs(taxes - taxesBeforeHealthSettlement) <= 0.01m)
+     break;
+   }
+
+   _ = TaxService.CalculateCapitalTaxWithFavorableCheck(
+    s,
+    year,
+    age1,
+    age2,
+    pension.TaxableIncome1,
+    pension.TaxableIncome2,
+    interest,
+    sd,
+    wd + ed + equityFundAdvanceLumpSumTaxableThisYear,
+    realizedStockGains,
+    realizedEquityFundGains,
+    GetEffectiveCapitalGainsAllowance(s, year),
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out stockLossCarryForward,
+    out otherLossCarryForward);
+
+   pendingWorldAdvanceLumpSum = worldValueBeforeSales > 0m
+    ? currentYearWorldAdvanceLumpSum * Math.Min(1m, world / worldValueBeforeSales)
+    : 0m;
+   pendingDividendEtfAdvanceLumpSum = divEtfValueBeforeSales > 0m
+    ? currentYearDividendEtfAdvanceLumpSum * Math.Min(1m, divEtf / divEtfValueBeforeSales)
+    : 0m;
+
    if (cash + world + divEtf + divStocks <= 0.01m && year < finalYear)
-    return 0m;
+    return -1m;
   }
 
   return cash + world + divEtf + divStocks;
  }
 
+ private static decimal EstimateInitialCostBasis(
+  decimal simulatedValue,
+  decimal currentValue,
+  int startYear,
+  decimal historicalReturn)
+ {
+  if (simulatedValue <= 0m || currentValue <= 0m)
+   return Math.Max(0m, simulatedValue);
+
+  int yearsHeld = Math.Max(0, DateTime.Today.Year - startYear);
+  if (yearsHeld == 0)
+   return Math.Max(0m, simulatedValue);
+
+  decimal growthFactor = Pow(1m + historicalReturn, yearsHeld);
+  if (growthFactor <= 0m)
+   return Math.Max(0m, simulatedValue);
+
+  decimal estimatedCurrentCostBasis = currentValue / growthFactor;
+  decimal costBasisRatio = estimatedCurrentCostBasis / currentValue;
+
+  return Math.Max(0m, simulatedValue * costBasisRatio);
+ }
+
+ private static decimal SellRiskyAssets(
+  ref decimal world,
+  ref decimal worldCostBasis,
+  ref decimal divEtf,
+  ref decimal divEtfCostBasis,
+  ref decimal divStocks,
+  ref decimal divStocksCostBasis,
+  ref decimal equityFundAdvanceLumpSumCarry,
+  decimal requestedAmount,
+  out decimal realizedStockGain,
+  out decimal realizedEquityFundGain)
+ {
+  realizedStockGain = 0m;
+  realizedEquityFundGain = 0m;
+
+  decimal risky = world + divEtf + divStocks;
+  if (requestedAmount <= 0m || risky <= 0m)
+   return 0m;
+
+  decimal sold = Math.Min(risky, requestedAmount);
+  decimal worldSale = sold * world / risky;
+  decimal divEtfSale = sold * divEtf / risky;
+  decimal divStocksSale = sold * divStocks / risky;
+
+  decimal realizedEquityFundGainBeforeAdvanceLumpSum =
+   CalculateRealizedGainAndReduceCostBasis(
+    ref worldCostBasis,
+    world,
+    worldSale) +
+   CalculateRealizedGainAndReduceCostBasis(
+    ref divEtfCostBasis,
+    divEtf,
+    divEtfSale);
+
+  decimal soldFraction = Math.Min(1m, sold / risky);
+  decimal removedAdvanceLumpSum = equityFundAdvanceLumpSumCarry * soldFraction;
+  equityFundAdvanceLumpSumCarry =
+   Math.Max(0m, equityFundAdvanceLumpSumCarry - removedAdvanceLumpSum);
+  realizedEquityFundGain =
+   realizedEquityFundGainBeforeAdvanceLumpSum - removedAdvanceLumpSum;
+
+  realizedStockGain += CalculateRealizedGainAndReduceCostBasis(
+   ref divStocksCostBasis,
+   divStocks,
+   divStocksSale);
+
+  world = Math.Max(0m, world - worldSale);
+  divEtf = Math.Max(0m, divEtf - divEtfSale);
+  divStocks = Math.Max(0m, divStocks - divStocksSale);
+
+  return sold;
+ }
+
+ private static decimal CalculateRealizedGainAndReduceCostBasis(
+  ref decimal costBasis,
+  decimal currentValue,
+  decimal saleAmount)
+ {
+  if (saleAmount <= 0m || currentValue <= 0m)
+   return 0m;
+
+  decimal soldFraction = Math.Min(1m, saleAmount / currentValue);
+  decimal removedCostBasis = costBasis * soldFraction;
+  costBasis = Math.Max(0m, costBasis - removedCostBasis);
+
+  return saleAmount - removedCostBasis;
+ }
+
+ private static decimal SettleCapitalTaxAfterSales(
+  PlannerSettings s,
+  int year,
+  int age1,
+  int age2,
+  decimal regularTaxableIncome1,
+  decimal regularTaxableIncome2,
+  decimal interest,
+  decimal stockDividends,
+  decimal equityFundDistributions,
+  ref decimal cash,
+  ref decimal world,
+  ref decimal worldCostBasis,
+  ref decimal divEtf,
+  ref decimal divEtfCostBasis,
+  ref decimal divStocks,
+  ref decimal divStocksCostBasis,
+  ref decimal equityFundAdvanceLumpSumCarry,
+  ref decimal realizedStockGains,
+  ref decimal realizedEquityFundGains,
+  ref decimal withdrawn,
+  decimal baseTaxes,
+  decimal openingStockLossCarryForward,
+  decimal openingOtherLossCarryForward,
+  out decimal fundingGap)
+ {
+  decimal paidTaxes = baseTaxes;
+  decimal totalTaxes = baseTaxes;
+
+  for (int pass = 0; pass < 32; pass++)
+  {
+   totalTaxes = TaxService.CalculateCapitalTaxWithFavorableCheck(
+    s,
+    year,
+    age1,
+    age2,
+    regularTaxableIncome1,
+    regularTaxableIncome2,
+    interest,
+    stockDividends,
+    equityFundDistributions,
+    realizedStockGains,
+    realizedEquityFundGains,
+    GetEffectiveCapitalGainsAllowance(s, year),
+    openingStockLossCarryForward,
+    openingOtherLossCarryForward,
+    out _,
+    out _);
+
+   decimal additionalTax = Math.Max(0m, totalTaxes - paidTaxes);
+   if (additionalTax <= 0.01m)
+    break;
+
+   decimal fromCash = Math.Min(cash, additionalTax);
+   cash -= fromCash;
+   withdrawn += fromCash;
+   paidTaxes += fromCash;
+   additionalTax -= fromCash;
+
+   if (additionalTax <= 0.01m)
+    continue;
+
+   decimal sold = SellRiskyAssets(
+    ref world,
+    ref worldCostBasis,
+    ref divEtf,
+    ref divEtfCostBasis,
+    ref divStocks,
+    ref divStocksCostBasis,
+    ref equityFundAdvanceLumpSumCarry,
+    additionalTax,
+    out decimal realizedStockGain,
+    out decimal realizedEquityFundGain);
+
+   realizedStockGains += realizedStockGain;
+   realizedEquityFundGains += realizedEquityFundGain;
+   withdrawn += sold;
+   paidTaxes += sold;
+
+   if (sold <= 0m)
+    break;
+  }
+
+  totalTaxes = TaxService.CalculateCapitalTaxWithFavorableCheck(
+   s,
+   year,
+   age1,
+   age2,
+   regularTaxableIncome1,
+   regularTaxableIncome2,
+   interest,
+   stockDividends,
+   equityFundDistributions,
+   realizedStockGains,
+   realizedEquityFundGains,
+   GetEffectiveCapitalGainsAllowance(s, year),
+   openingStockLossCarryForward,
+   openingOtherLossCarryForward,
+   out _,
+   out _);
+
+  fundingGap = Math.Max(0m, totalTaxes - paidTaxes);
+  return totalTaxes;
+ }
+
+ private static decimal GetEffectiveCapitalGainsAllowance(
+  PlannerSettings s,
+  int year)
+ {
+  decimal householdAllowance = Math.Max(0m, s.CapitalGainsAllowance);
+
+  if (s.HouseholdPersonCount != 2)
+   return householdAllowance;
+
+  int planningAgePerson1 = GetPlanningAge(s.Person1Age, s.PlanningYear);
+  int planningAgePerson2 = GetPlanningAge(s.Person2Age, s.PlanningYear);
+  int offset = year - s.PlanningYear;
+
+  bool person1Included = planningAgePerson1 + offset <= s.Person1EndAge;
+  bool person2Included = planningAgePerson2 + offset <= s.Person2EndAge;
+
+  return person1Included && person2Included
+   ? householdAllowance
+   : householdAllowance / 2m;
+ }
+
  private static decimal CalculateVoluntaryHealthAndCareAnnual(
   PlannerSettings s,
+  HealthInsuranceProjectionParameters healthInsuranceParameters,
   decimal monthlyCapitalIncomePerPerson)
  {
   decimal contributionBaseMonthly = Math.Max(
-   s.VoluntaryHealthInsuranceMinimumMonthlyIncome,
+   healthInsuranceParameters.MinimumMonthlyIncome,
    Math.Min(
-    s.VoluntaryHealthInsuranceMaximumMonthlyIncome,
+    healthInsuranceParameters.MaximumMonthlyIncome,
     Math.Max(0m, monthlyCapitalIncomePerPerson)));
 
   decimal combinedRate =
    s.VoluntaryHealthInsuranceRate +
-   s.VoluntaryHealthInsuranceAdditionalRate +
-   s.CareInsuranceChildlessRate;
+   healthInsuranceParameters.AdditionalRate +
+   healthInsuranceParameters.CareRate;
 
   return contributionBaseMonthly * combinedRate * 12m;
+ }
+
+ private static int GetPerson2WorkEndYear(PlannerSettings s)
+ {
+  return s.Person2WorkEndYear > 0 ? s.Person2WorkEndYear : s.PlanningYear;
+ }
+
+ private static decimal CalculatePerson2NetEmploymentIncome(PlannerSettings s, int year)
+ {
+  if (s.HouseholdPersonCount != 2 ||
+      year >= GetPerson2WorkEndYear(s) ||
+      s.Person2NetIncomeMonthly <= 0m)
+   return 0m;
+
+  int yearsFromCurrentYear = Math.Max(0, year - DateTime.Today.Year);
+  decimal incomeFactor = Pow(1m + s.Person2NetIncomeIncreaseRate, yearsFromCurrentYear);
+
+  return s.Person2NetIncomeMonthly * 12m * incomeFactor;
  }
 
  private static decimal SumCashFlows(IEnumerable<OneTimeCashFlow> flows, int year, int planningYear, decimal inflation)
@@ -463,6 +1472,11 @@ public static class ProjectionService
    sum += flow.AmountToday * Pow(1m + inflation, offset);
   }
   return sum;
+ }
+
+ private static int GetPlanningAge(int currentAge, int planningYear)
+ {
+  return currentAge + (planningYear - DateTime.Today.Year);
  }
 
  private static decimal Pow(decimal value, int exponent)

@@ -12,8 +12,7 @@ public static class WindowBehavior
     private const int DwmwaUseImmersiveDarkMode = 20;
 
     private static readonly string WindowSizesFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "RockefellerFiction",
+        AppContext.BaseDirectory,
         "window-sizes.json");
 
     public static readonly DependencyProperty StartupLocationProperty =

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using System.Text.Json;
 
 namespace RockefellerFiction;
 
@@ -23,11 +24,13 @@ public static class CalculationDocumentationService
   AppendTitle(text, "BERECHNUNGSGRUNDLAGEN");
 
   text.AppendLine("Diese Ansicht wird bei jedem Öffnen neu erzeugt.");
-  text.AppendLine("Die exakten Rechenzeilen werden direkt aus den aktuell im Projekt vorhandenen C#-Quelldateien gelesen.");
-  text.AppendLine("Ändert sich eine Formel im Source, erscheint nach dem nächsten Öffnen dieser Lasche automatisch die geänderte Formel.");
+  text.AppendLine("Die vollständigen aktuell verwendeten Einstellungen werden automatisch aus PlannerSettings und der aktuellen Strategieaufteilung ausgegeben.");
+  text.AppendLine("Die Berechnungsquellen werden vollständig direkt aus den aktuell im Projekt vorhandenen C#-Quelldateien gelesen.");
+  text.AppendLine("Ändert sich eine Einstellung, eine Formel oder eine Berechnungsmethode im Source, erscheint sie nach dem nächsten Öffnen dieser Lasche im automatischen Teil der Dokumentation.");
   text.AppendLine();
 
   AppendCurrentValues(text, settings, allocation);
+  AppendCompleteSettingsSnapshot(text, settings, allocation);
   AppendHumanReadableCalculationFlow(text);
   AppendDynamicSourceDocumentation(text);
 
@@ -41,11 +44,34 @@ public static class CalculationDocumentationService
  {
   AppendTitle(text, "AKTUELL VERWENDETE WERTE");
 
-  text.AppendLine($"Planungsjahr = {settings.PlanningYear}");
+  text.AppendLine($"Haushalt = {settings.HouseholdPersonCount} {(settings.HouseholdPersonCount == 1 ? "Person" : "Personen")}");
+  if (settings.HouseholdPersonCount == 2)
+   text.AppendLine($"Gemeinsame steuerliche Veranlagung = {(settings.JointTaxation ? "Ja" : "Nein")}");
+  text.AppendLine($"Vorzeitiges Arbeitsende Person 1 / Planungsbeginn = {settings.PlanningYear}");
+
+  if (settings.HouseholdPersonCount == 2)
+  {
+   text.AppendLine($"Vorzeitiges Arbeitsende Person 2 = {(settings.Person2WorkEndYear > 0 ? settings.Person2WorkEndYear : settings.PlanningYear)}");
+   text.AppendLine($"Nettoeinkommen Person 2 pro Monat = {settings.Person2NetIncomeMonthly:N2} €");
+   text.AppendLine($"Nettoeinkommen-Steigerung Person 2 = {settings.Person2NetIncomeIncreaseRate:P2}");
+   text.AppendLine($"Voraussichtliche Bruttorente Person 2 zum Arbeitsende = {settings.Person2PensionGrossMonthly:N2} € pro Monat");
+  }
+
   text.AppendLine($"Startvermögen = {settings.StartCapital:N2} €");
   text.AppendLine($"Monatliche Lebenshaltung = {settings.MonthlyLivingCosts:N2} €");
   text.AppendLine($"Inflation = {settings.InflationRate:P2}");
   text.AppendLine($"Rentensteigerung = {settings.PensionIncreaseRate:P2}");
+  text.AppendLine("Rentensteigerung Person 1: Der heute bereits erworbene Rentenwert wird ab dem aktuellen Kalenderjahr bis zum tatsächlichen Rentenbeginn und danach jährlich fortgeschrieben.");
+  if (settings.HouseholdPersonCount == 2)
+   text.AppendLine("Rentensteigerung Person 2: Der eingegebene Rentenwert zum Arbeitsende wird ab dem Arbeitsende bis zum tatsächlichen Rentenbeginn und danach jährlich fortgeschrieben.");
+  text.AppendLine($"GKV/Pflege Basisjahr = {settings.HealthInsuranceBaseYear}");
+  text.AppendLine($"GKV/Pflege Bemessungsgrenzen Änderung p.a. = {settings.HealthInsuranceAssessmentIncreaseRate:P2}");
+  text.AppendLine($"GKV-Zusatzbeitrag Änderung p.a. in Prozentpunkten = {settings.HealthInsuranceAdditionalRateAnnualChange:P2}");
+  text.AppendLine($"Pflegeversicherung Änderung p.a. in Prozentpunkten = {settings.CareInsuranceRateAnnualChange:P2}");
+  text.AppendLine($"Stress: zusätzl. Änderung GKV/Pflege Bemessungsgrenzen p.a. = {settings.StressHealthInsuranceAssessmentAdditionalIncreaseRate:P2}");
+  text.AppendLine($"Stress: zusätzl. GKV-Zusatzbeitrag p.a. in Prozentpunkten = {settings.StressHealthInsuranceAdditionalRateAnnualChange:P2}");
+  text.AppendLine($"Stress: zusätzl. Pflegebeitrag p.a. in Prozentpunkten = {settings.StressCareInsuranceRateAnnualChange:P2}");
+  text.AppendLine($"Basiszins Vorabpauschale = {settings.AdvanceLumpSumBaseRate:P2}");
   text.AppendLine();
 
   text.AppendLine("Anlageaufteilung:");
@@ -57,12 +83,42 @@ public static class CalculationDocumentationService
 
   text.AppendLine("Renditen/Ausschüttungen:");
   text.AppendLine($"Tages-/Festgeld Zins = {settings.CashInterestRate:P2}");
+  text.AppendLine($"Welt-ETF aktueller Stand = {settings.WorldEtfCurrentValue:N2} €");
+  text.AppendLine($"Welt-ETF besteht seit = {settings.WorldEtfStartYear}");
+  text.AppendLine($"Welt-ETF bisherige Durchschnittsrendite = {settings.WorldEtfHistoricalReturn:P2}");
   text.AppendLine($"Welt-ETF Gesamtrendite = {settings.WorldEtfReturn:P2}");
   text.AppendLine($"Welt-ETF Ausschüttung = {settings.WorldEtfDistribution:P2}");
+  text.AppendLine($"Dividenden-ETF aktueller Stand = {settings.DividendEtfCurrentValue:N2} €");
+  text.AppendLine($"Dividenden-ETF besteht seit = {settings.DividendEtfStartYear}");
+  text.AppendLine($"Dividenden-ETF bisherige Durchschnittsrendite = {settings.DividendEtfHistoricalReturn:P2}");
   text.AppendLine($"Dividenden-ETF Gesamtrendite = {settings.DividendEtfReturn:P2}");
   text.AppendLine($"Dividenden-ETF Ausschüttung = {settings.DividendEtfDistribution:P2}");
+  text.AppendLine($"Dividenden-Aktien aktueller Stand = {settings.DividendStocksCurrentValue:N2} €");
+  text.AppendLine($"Dividenden-Aktien bestehen seit = {settings.DividendStocksStartYear}");
+  text.AppendLine($"Dividenden-Aktien bisherige Durchschnittsrendite = {settings.DividendStocksHistoricalReturn:P2}");
   text.AppendLine($"Dividenden-Aktien Gesamtrendite = {settings.DividendStocksReturn:P2}");
   text.AppendLine($"Dividenden-Aktien Ausschüttung = {settings.DividendStocksDistribution:P2}");
+  text.AppendLine();
+ }
+
+ private static void AppendCompleteSettingsSnapshot(
+  StringBuilder text,
+  PlannerSettings settings,
+  StrategyAllocation allocation)
+ {
+  AppendTitle(text, "VOLLSTÄNDIGE EINSTELLUNGEN – AUTOMATISCH");
+
+  var jsonOptions = new JsonSerializerOptions
+  {
+   WriteIndented = true
+  };
+
+  text.AppendLine("PlannerSettings:");
+  text.AppendLine(JsonSerializer.Serialize(settings, jsonOptions));
+  text.AppendLine();
+
+  text.AppendLine("StrategyAllocation:");
+  text.AppendLine(JsonSerializer.Serialize(allocation, jsonOptions));
   text.AppendLine();
  }
 
@@ -73,7 +129,7 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "1. Planungszeitraum",
-   "Das Programm ermittelt für beide Personen das rechnerische Endjahr aus Startalter und Planungsendalter. Verwendet wird das spätere der beiden Endjahre.",
+   "Bei einem Ein-Personen-Haushalt richtet sich das Planungsende ausschließlich nach Person 1. Bei zwei Personen ermittelt das Programm für beide Personen das rechnerische Endjahr aus Startalter und Planungsendalter und verwendet das spätere der beiden Endjahre.",
    "ProjectionService.Calculate");
 
   AppendSection(
@@ -84,15 +140,15 @@ public static class CalculationDocumentationService
 
   AppendSection(
    text,
-   "3. Freiwillige GKV/Pflege vor Rentenbeginn",
-   "Zinsen und Ausschüttungen werden als relevante Kapitalerträge zusammengeführt und 50/50 auf beide Personen verteilt. Pro Person wird die monatliche Bemessungsgrundlage zwischen Mindest-Bemessungsgrundlage und Beitragsbemessungsgrenze begrenzt. Darauf werden GKV-Satz, Zusatzbeitrag und Pflegeversicherung angewendet.",
-   "ProjectionService.CalculateVoluntaryHealthAndCareAnnual");
+   "3. Freiwillige GKV/Pflege nach Arbeitsende und vor Rentenbeginn",
+   "Zinsen, Ausschüttungen und bei Verkäufen realisierte positive Kursgewinne werden als relevante Kapitalerträge zusammengeführt. Bei den im Modell als Aktienfonds behandelten ETFs werden realisierte Gewinne mit dem bereits im Steuerteil verwendeten steuerpflichtigen Anteil von 70 % berücksichtigt. Bei einem Ein-Personen-Haushalt werden sie vollständig Person 1 zugerechnet; bei zwei Personen werden sie 50/50 auf beide Personen verteilt. Für Person 1 beginnt die Projektion mit ihrem Arbeitsende. Für Person 2 wird die freiwillige GKV/Pflege erst ab ihrem eigenen Arbeitsende und nur vor ihrem Rentenbeginn angesetzt; solange Person 2 noch arbeitet, wird dafür kein freiwilliger Beitrag auf Kapitalerträge berechnet. Mindest-Bemessungsgrundlage und Beitragsbemessungsgrenze werden ab dem eingetragenen GKV/Pflege-Basisjahr mit der eingetragenen relativen Jahresänderung fortgeschrieben. Zusatzbeitrag und Pflege-Beitragssatz werden ab dem Basisjahr um die eingetragene jährliche Änderung in Prozentpunkten verändert. Im Stressszenario werden die separat eingetragenen zusätzlichen Änderungen auf diese Annahmen aufgeschlagen. Es werden keine gesetzlichen Zukunftswerte automatisch unterstellt. Pro betroffener Person wird die monatliche Bemessungsgrundlage zwischen den für das jeweilige Jahr fortgeschriebenen Grenzen begrenzt. Darauf werden GKV-Satz, fortgeschriebener Zusatzbeitrag und fortgeschriebene Pflegeversicherung angewendet. Realisierte Verluste werden steuerlich nicht verworfen. Verluste aus Einzelaktien werden getrennt vorgetragen und ausschließlich mit Gewinnen aus Einzelaktien verrechnet. Sonstige Verluste aus den im Modell als Aktienfonds behandelten ETFs werden entsprechend der bestehenden 30-%-Teilfreistellung nur zu 70 % steuerlich berücksichtigt. Die Verlustverrechnung erfolgt vor dem Sparer-Pauschbetrag.",
+   "ProjectionService.CalculateVoluntaryHealthAndCareAnnual / PensionService.CalculateHealthInsuranceProjectionParameters");
 
   AppendSection(
    text,
-   "4. Rente",
-   "Vor dem jeweiligen Rentenalter wird keine gesetzliche Rente angesetzt. Die hinterlegte Monatsrente muss die bereits erworbene Rente ohne weitere Beitragszahlungen sein; dadurch sind künftig nicht mehr erworbene Rentenpunkte bereits berücksichtigt. Beginnt die Rente vor 67, wird sie um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %, dauerhaft vermindert. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft. Ab Rentenbeginn wird die so angepasste Monatsrente auf zwölf Monate hochgerechnet und mit der Rentensteigerung fortgeschrieben. Danach werden die im PensionService verwendeten Kranken-, Zusatz- und Pflegeanteile abgezogen.",
-   "PensionService.CalculateAnnualPension");
+   "4. Rente und vereinfachte Rentensteuer",
+   "Vor dem jeweiligen Rentenalter wird keine gesetzliche Rente angesetzt. Die hinterlegte Monatsrente muss die bereits erworbene Rente ohne weitere Beitragszahlungen sein; dadurch sind künftig nicht mehr erworbene Rentenpunkte bereits berücksichtigt. Beginnt die Rente vor 67, wird sie um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %, dauerhaft vermindert. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft. Ab Rentenbeginn wird die so angepasste Monatsrente auf zwölf Monate hochgerechnet und mit der Rentensteigerung fortgeschrieben. Bei aktivierter KVdR werden der im PensionService hinterlegte Krankenversicherungsanteil sowie der für das jeweilige Jahr fortgeschriebene Zusatzbeitrag und Pflege-Beitragssatz von der gesetzlichen Rente abgezogen. Bei deaktivierter KVdR wird freiwillige GKV/Pflege angenommen: Zusätzlich zur Belastung auf die gesetzliche Rente werden die im Modell erfassten sonstigen beitragspflichtigen Einnahmen bis zur Beitragsbemessungsgrenze berücksichtigt; bei niedrigen Gesamteinnahmen greift die Mindest-Bemessungsgrundlage. Der auf die gesetzliche Rente entfallende Krankenversicherungsanteil bleibt wegen des modellierten Rentenversicherungszuschusses auf derselben Nettobelastung wie bei KVdR; zusätzliche freiwillige Beiträge werden als GKV/Pflege-Bedarf der jeweiligen Person ausgewiesen. Die Fortschreibung verwendet dieselben GKV/Pflege-Annahmen wie die freiwillige Versicherung und berücksichtigt im Stressszenario die dort eingetragenen zusätzlichen Änderungen. Zusätzlich wird eine vereinfachte Einkommensteuer auf die Renteneinkünfte berechnet. Bei einem Ein-Personen-Haushalt wird Person 2 vollständig ignoriert und der Einkommensteuertarif ohne Splitting verwendet. Bei zwei Personen steuert die Einstellung zur gemeinsamen steuerlichen Veranlagung die Berechnung: Bei aktivierter gemeinsamer Veranlagung wird der Splittingtarif verwendet, andernfalls werden die tariflichen Steuern beider Personen getrennt berechnet. Der steuerpflichtige Rentenanteil richtet sich nach dem jeweiligen Rentenbeginn; der daraus ermittelte steuerfreie Rentenbetrag wird für die weitere Simulation festgehalten. Pro rentenbeziehender Person wird der im PensionService hinterlegte Werbungskosten-Pauschbetrag berücksichtigt; die dort berechneten Kranken- und Pflegebeiträge mindern ebenfalls die für diese Modellrechnung angesetzten steuerpflichtigen Renteneinkünfte. Die tarifliche Einkommensteuer einschließlich aktivierter Kirchensteuer und Solidaritätszuschlag verwendet den im PensionService hinterlegten Einkommensteuertarif 2026 als gesetzliche Basis. Für spätere Simulationsjahre wird keine zukünftige Steuerformel erfunden: Stattdessen wird der 2026er Tarif modellintern mit der eingetragenen Inflation fortgeschrieben. Technisch wird das nominale zu versteuernde Einkommen zunächst auf 2026-Euro zurückgerechnet, mit dem 2026er Tarif besteuert und der Steuerbetrag anschließend mit demselben Inflationsfaktor wieder auf das Simulationsjahr hochgerechnet. Damit wird im Modell eine vollständige Inflationsanpassung des Tarifs unterstellt; tatsächliche zukünftige Gesetzesänderungen können davon abweichen. Das Nettoeinkommen von Person 2 aus laufender Beschäftigungsphase wird bewusst nicht in die Rentensteuer zurückgerechnet; die Steuer während einer parallelen Beschäftigungsphase von Person 2 ist deshalb eine Näherung.",
+   "PensionService.CalculateAnnualPension / PensionService.CalculateJointPensionIncomeTax / PensionService.CalculateProjectedIncomeTaxIncludingSurcharges");
 
   AppendSection(
    text,
@@ -115,8 +171,8 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "8. Kapitalertragsteuer",
-   "Zinsen, Dividenden von Einzelaktien, der steuerpflichtige Anteil von ETF-Ausschüttungen und realisierte Gewinne werden zusammengeführt. Danach wird der Sparer-Pauschbetrag abgezogen. Auf den Rest werden Kapitalertragsteuer und Solidaritätszuschlag berechnet.",
-   "TaxService.CalculateCapitalTax");
+   "Zinsen, Dividenden von Einzelaktien, der steuerpflichtige Anteil von ETF-Ausschüttungen, Vorabpauschalen und geschätzte realisierte Veräußerungsgewinne werden zusammengeführt. Die Vorabpauschale wird nach § 18 InvStG aus dem ETF-Wert zu Jahresbeginn, 70 % des eingetragenen Basiszinses, der Wertentwicklung und den Ausschüttungen begrenzt berechnet. Sie wird im Folgejahr als Kapitalertrag berücksichtigt. Ab Simulationsbeginn angesetzte Vorabpauschalen werden intern fortgeschrieben und bei späteren ETF-Verkäufen anteilig vom geschätzten Veräußerungsgewinn abgezogen. Für die Schätzung des bereits im Depot enthaltenen Kursgewinns werden aktueller Depotstand, Startjahr und bisherige Durchschnittsrendite verwendet. Bei späteren proportionalen Verkäufen wird der geschätzte Einstandswert anteilig fortgeschrieben. ETF-Veräußerungsgewinne werden wie die ETF-Ausschüttungen mit dem im TaxService hinterlegten steuerpflichtigen Anteil berücksichtigt. Danach wird der eingetragene Sparer-Pauschbetrag abgezogen. Die Haushaltsauswahl setzt dafür beim Wechsel automatisch 1.000 € für eine Person bzw. 2.000 € für zwei Personen; der anschließend manuell eingetragene Haushaltswert bleibt editierbar. Bei einem Zwei-Personen-Haushalt wird nach dem modellierten Lebensende der ersten Person ab dem folgenden Simulationsjahr nur noch die Hälfte dieses Haushaltswerts verwendet. Die Einstellung zur gemeinsamen steuerlichen Veranlagung steuert separat die tarifliche Renten-Einkommensteuer: Bei Ja wird solange beide Personen im Modell leben der Splittingtarif verwendet, bei Nein werden die tariflichen Steuern beider Personen getrennt berechnet. Die individuelle Eigentumszuordnung von Kapitalerträgen wird nicht separat modelliert. Zusätzlich wird für jedes Simulationsjahr automatisch eine Günstigerprüfung nach § 32d Abs. 6 EStG durchgeführt: Die Belastung aus dem gesonderten Kapitalertragsteuertarif wird mit der zusätzlichen tariflichen Einkommensteuer einschließlich Zuschlagsteuern verglichen; verwendet wird nur die niedrigere Belastung. Bei getrennter Veranlagung von zwei lebenden Personen werden die steuerpflichtigen Kapitaleinkünfte mangels individueller Depotzuordnung im bestehenden Modell hälftig zugeordnet. Ohne Kirchensteuer werden auf den Rest 25 % Kapitalertragsteuer und 5,5 % Solidaritätszuschlag auf die Kapitalertragsteuer berechnet. Ist Kirchensteuer aktiviert und ein Satz größer 0 % eingetragen, wird die Einkommensteuer auf Kapitalerträge nach § 32d Abs. 1 EStG mit dem eingetragenen Kirchensteuersatz berechnet; anschließend werden Kirchensteuer und Solidaritätszuschlag hinzugerechnet. Die Einstandswert-Ermittlung ist eine Näherung aus den eingegebenen Durchschnittswerten und keine depotgenaue FIFO-Steuerabrechnung.",
+   "TaxService.CalculateCapitalTax / TaxService.CalculateCapitalTaxWithFavorableCheck / ProjectionService.EstimateInitialCostBasis / ProjectionService.SellRiskyAssets");
 
   AppendSection(
    text,
@@ -127,7 +183,7 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "10. Finanzierung des Jahresbedarfs",
-   "Der Jahresbedarf wird zuerst durch Nettorente und einmalige Einnahmen gedeckt, danach durch Ausschüttungen. Reicht das nicht, wird Tages-/Festgeld verwendet. Danach wird proportional aus den drei Aktien-/ETF-Bausteinen entnommen. Ein Rest wird als Finanzierungslücke ausgewiesen.",
+   "Der Jahresbedarf wird zuerst durch Nettorente gedeckt. Solange Person 2 vor ihrem eigenen Arbeitsende noch arbeitet, wird anschließend ihr aktuelles monatliches Nettoeinkommen mit der eingetragenen jährlichen Steigerung berücksichtigt. Danach folgen einmalige Einnahmen und Ausschüttungen. Reicht das nicht, wird Tages-/Festgeld verwendet. Danach wird proportional aus den drei Aktien-/ETF-Bausteinen entnommen. Ein Rest wird als Finanzierungslücke ausgewiesen. Nicht benötigtes Nettoeinkommen von Person 2 wird dem sicheren Geldanteil zugeschlagen.",
    "ProjectionService.Calculate");
 
   AppendSection(
@@ -151,7 +207,7 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "14. Strategieempfehlung",
-   "Die Strategien werden in der Reihenfolge Wachstum, Ausgewogen und Sicherheit getestet. Zurückgegeben wird die erste Strategie, die Basis- und Stresslauf besteht. Besteht keine alle Prüfungen, wird Sicherheit verwendet.",
+   "Die Default-Strategien werden anhand der mit den aktuellen Renditeannahmen gewichteten erwarteten Portfoliorendite absteigend geprüft. Zurückgegeben wird die renditestärkste Strategie, die Basis- und Stresslauf besteht. Besteht keine Strategie beide Prüfungen, wird Sicherheit als konservativer Fallback verwendet.",
    "StrategyService.Recommend");
 
   AppendSection(
@@ -163,7 +219,7 @@ public static class CalculationDocumentationService
 
  private static void AppendDynamicSourceDocumentation(StringBuilder text)
  {
-  AppendTitle(text, "FORMELN DIREKT AUS DEM SOURCE");
+  AppendTitle(text, "BERECHNUNGSQUELLEN – VOLLSTÄNDIG AUTOMATISCH");
 
   string? projectRoot = FindProjectRoot();
 
@@ -188,66 +244,8 @@ public static class CalculationDocumentationService
     continue;
    }
 
-   string[] lines = File.ReadAllLines(path);
-   bool anyFormula = false;
-
-   foreach (string rawLine in lines)
-   {
-    string line = rawLine.Trim();
-
-    if (!IsCalculationLine(line))
-     continue;
-
-    text.AppendLine(line);
-    anyFormula = true;
-   }
-
-   if (!anyFormula)
-    text.AppendLine("Keine Rechenzeilen erkannt.");
+   text.AppendLine(File.ReadAllText(path));
   }
- }
-
- private static bool IsCalculationLine(string line)
- {
-  if (string.IsNullOrWhiteSpace(line))
-   return false;
-
-  if (line.StartsWith("//", StringComparison.Ordinal))
-   return false;
-
-  if (line.StartsWith("private const decimal ", StringComparison.Ordinal))
-   return true;
-
-  if (line.StartsWith("decimal ", StringComparison.Ordinal))
-   return true;
-
-  if (line.StartsWith("bool ", StringComparison.Ordinal))
-   return true;
-
-  if (line.StartsWith("int ", StringComparison.Ordinal) &&
-      line.Contains("=", StringComparison.Ordinal))
-   return true;
-
-  if (line.StartsWith("if ", StringComparison.Ordinal) ||
-      line.StartsWith("else if ", StringComparison.Ordinal))
-   return true;
-
-  if (line.StartsWith("return ", StringComparison.Ordinal))
-   return true;
-
-  if (line.Contains("Math.", StringComparison.Ordinal))
-   return true;
-
-  if (line.Contains("Pow(", StringComparison.Ordinal))
-   return true;
-
-  if (line.Contains("+=", StringComparison.Ordinal) ||
-      line.Contains("-=", StringComparison.Ordinal) ||
-      line.Contains("*=", StringComparison.Ordinal) ||
-      line.Contains("/=", StringComparison.Ordinal))
-   return true;
-
-  return false;
  }
 
  private static string? FindProjectRoot()

@@ -72,6 +72,8 @@ public static class SettingsService
  public static void Save(PlannerSettings settings)
  {
   string path = FindSettingsPath();
+  EnsureSettingsDirectory(path);
+
   string json = JsonSerializer.Serialize(settings, JsonOptions);
   File.WriteAllText(path, json);
  }
@@ -81,6 +83,7 @@ public static class SettingsService
   StrategyAllocation allocation)
  {
   string path = FindSettingsPath();
+  EnsureSettingsDirectory(path);
 
   var package = new SettingsExportPackage
   {
@@ -420,16 +423,17 @@ public static class SettingsService
 
  private static string FindSettingsPath()
  {
-  string current = Directory.GetCurrentDirectory();
-  var dir = new DirectoryInfo(current);
+  return Path.Combine(
+   AppContext.BaseDirectory,
+   "settings.json");
+ }
 
-  for (int i = 0; i < 6 && dir != null; i++, dir = dir.Parent)
-  {
-   if (File.Exists(Path.Combine(dir.FullName, "RockefellerFiction.csproj")))
-    return Path.Combine(dir.FullName, "settings.json");
-  }
+ private static void EnsureSettingsDirectory(string path)
+ {
+  string? directory = Path.GetDirectoryName(path);
 
-  return Path.Combine(AppContext.BaseDirectory, "settings.json");
+  if (!string.IsNullOrWhiteSpace(directory))
+   Directory.CreateDirectory(directory);
  }
 
  private sealed class SettingsExportPackage

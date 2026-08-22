@@ -8,10 +8,10 @@ namespace RockefellerFiction;
 
 public partial class ResultsWindow : Window
 {
- private readonly PlannerSettings _settings;
- private readonly StrategyAllocation _allocation;
- private readonly ProjectionResult _baseResult;
- private readonly ProjectionResult _stressResult;
+ private PlannerSettings _settings;
+ private StrategyAllocation _allocation;
+ private ProjectionResult _baseResult;
+ private ProjectionResult _stressResult;
 
  public ResultsWindow(
   PlannerSettings settings,
@@ -25,6 +25,32 @@ public partial class ResultsWindow : Window
   UiLayout.ApplyResultsWindow(this);
   WindowBehavior.ApplyDarkTitleBar(this);
 
+  _settings = settings;
+  _allocation = allocation;
+  _baseResult = baseResult;
+  _stressResult = stressResult;
+
+  UpdateResults(settings, allocation, baseResult, stressResult);
+
+  ApplyGroupHeaderColors();
+
+  CapitalChart.SizeChanged += (_, _) => DrawCapitalChart();
+  Loaded += (_, _) =>
+  {
+   DrawCapitalChart();
+   UpdateYearOverviewLayout();
+  };
+
+  YearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
+  StressYearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
+ }
+
+ public void UpdateResults(
+  PlannerSettings settings,
+  StrategyAllocation allocation,
+  ProjectionResult baseResult,
+  ProjectionResult stressResult)
+ {
   _settings = settings;
   _allocation = allocation;
   _baseResult = baseResult;
@@ -56,42 +82,74 @@ public partial class ResultsWindow : Window
   AssetGrid.ItemsSource = baseResult.Years;
   ReserveGrid.ItemsSource = baseResult.Years;
 
+  ApplyHouseholdVisibility();
+
   RecommendationText.Text =
    RecommendationService.Build(settings, allocation, baseResult, stressResult);
 
   SensitivityText.Text = BuildSensitivityText(settings, allocation);
 
-  ApplyGroupHeaderColors();
+  DrawCapitalChart();
+  UpdateYearOverviewLayout();
+ }
 
-  CapitalChart.SizeChanged += (_, _) => DrawCapitalChart();
-  Loaded += (_, _) =>
+ private void ApplyHouseholdVisibility()
+ {
+  Visibility person2Visibility =
+   _settings.HouseholdPersonCount == 1
+    ? Visibility.Collapsed
+    : Visibility.Visible;
+
+  SetColumnVisibility(
+   YearGrid,
+   person2Visibility,
+   "Alter 2",
+   "freiw. GKV/Pflege P2 mtl.",
+   "Nettoeinkommen P2 verwendet p.a.");
+  SetColumnVisibility(
+   StressYearGrid,
+   person2Visibility,
+   "Alter 2",
+   "freiw. GKV/Pflege P2 mtl.",
+   "Nettoeinkommen P2 verwendet p.a.");
+  SetColumnVisibility(
+   FundingGrid,
+   person2Visibility,
+   "Nettoeinkommen P2");
+ }
+
+ private static void SetColumnVisibility(
+  DataGrid dataGrid,
+  Visibility visibility,
+  params string[] headers)
+ {
+  foreach (DataGridColumn column in dataGrid.Columns)
   {
-   DrawCapitalChart();
-   UpdateYearOverviewLayout();
-  };
+   string header = column.Header?.ToString() ?? "";
 
-  YearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
-  StressYearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
+   if (headers.Contains(header, StringComparer.Ordinal))
+    column.Visibility = visibility;
+  }
  }
 
  private void UpdateYearOverviewLayout()
  {
   SetGroupWidth(BasePlanGroupColumn, YearGrid, 0, 3);
   SetGroupWidth(BaseExpenseGroupColumn, YearGrid, 3, 6);
-  SetGroupWidth(BasePensionGroupColumn, YearGrid, 9, 2);
-  SetGroupWidth(BaseIncomeGroupColumn, YearGrid, 11, 3);
-  SetGroupWidth(BaseTaxGroupColumn, YearGrid, 14, 1);
-  SetGroupWidth(BaseWealthGroupColumn, YearGrid, 15, 1);
-  SetGroupWidth(BaseStatusGroupColumn, YearGrid, 16, 1);
+  SetGroupWidth(BasePensionGroupColumn, YearGrid, 9, 3);
+  SetGroupWidth(BaseIncomeGroupColumn, YearGrid, 12, 4);
+  SetGroupWidth(BaseTaxGroupColumn, YearGrid, 16, 1);
+  SetGroupWidth(BaseWealthGroupColumn, YearGrid, 17, 1);
+  SetGroupWidth(BaseStatusGroupColumn, YearGrid, 18, 1);
   SetGridWidth(YearGrid, BaseGroupHeaderGrid);
 
   SetGroupWidth(StressPlanGroupColumn, StressYearGrid, 0, 3);
   SetGroupWidth(StressExpenseGroupColumn, StressYearGrid, 3, 5);
-  SetGroupWidth(StressPensionGroupColumn, StressYearGrid, 8, 1);
-  SetGroupWidth(StressIncomeGroupColumn, StressYearGrid, 9, 2);
-  SetGroupWidth(StressTaxGroupColumn, StressYearGrid, 11, 1);
-  SetGroupWidth(StressWealthGroupColumn, StressYearGrid, 12, 2);
-  SetGroupWidth(StressStatusGroupColumn, StressYearGrid, 14, 1);
+  SetGroupWidth(StressPensionGroupColumn, StressYearGrid, 8, 2);
+  SetGroupWidth(StressIncomeGroupColumn, StressYearGrid, 10, 3);
+  SetGroupWidth(StressTaxGroupColumn, StressYearGrid, 13, 1);
+  SetGroupWidth(StressWealthGroupColumn, StressYearGrid, 14, 2);
+  SetGroupWidth(StressStatusGroupColumn, StressYearGrid, 16, 1);
   SetGridWidth(StressYearGrid, StressGroupHeaderGrid);
  }
 
