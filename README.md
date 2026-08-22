@@ -1,3 +1,5 @@
+
+
 ## ⚠️ WARNUNG – EXPERIMENTELLES TOOL
 
 ⛔ Nicht für reale Finanzplanung oder tatsächliche Finanz-, Anlage-, Steuer-, Rechts- oder Rentenentscheidungen verwenden.
