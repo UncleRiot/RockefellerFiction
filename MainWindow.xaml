@@ -1,0 +1,75 @@
+<Window x:Class="RockefellerFiction.MainWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="RockefellerFiction"
+ Icon="Resources/AppIcon.ico"
+ PreviewMouseDown="Window_PreviewMouseDown"
+ Closing="Window_Closing">
+ <Window.Resources>
+  <ResourceDictionary>
+   <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="Design.xaml"/>
+   </ResourceDictionary.MergedDictionaries>
+  </ResourceDictionary>
+ </Window.Resources>
+ <Grid Margin="{StaticResource PagePadding}" Background="{StaticResource BgBrush}">
+  <Grid.RowDefinitions>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="12"/>
+   <RowDefinition Height="*"/>
+   <RowDefinition Height="12"/>
+   <RowDefinition Height="Auto"/>
+  </Grid.RowDefinitions>
+
+  <Grid Grid.Row="0">
+   <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="*"/>
+    <ColumnDefinition Width="Auto"/>
+   </Grid.ColumnDefinitions>
+   <StackPanel>
+    <TextBlock Text="RockefellerFiction" Style="{StaticResource HeaderTitle}"/>
+    <TextBlock Text="Alle Eingaben untereinander. Blaues ? = Erklärung."
+               Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+   </StackPanel>
+   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+    <Button Content="Berechnen" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Click="Calculate_Click"/>
+    <Button Content="Speichern" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Save_Click"/>
+    <Button Content="Export" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
+    <Button Content="Import" Width="{StaticResource HeaderButtonWidth}" Style="{StaticResource SecondaryButton}" Click="Import_Click"/>
+   </StackPanel>
+  </Grid>
+
+  <TabControl Grid.Row="2"
+              x:Name="MainTabs"
+              SelectionChanged="MainTabs_SelectionChanged">
+   <TabItem Header="Eingaben">
+    <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
+     <TabControl x:Name="InputSubTabs"/>
+    </Border>
+   </TabItem>
+
+   <TabItem Header="Berechnungsgrundlagen">
+    <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
+     <ScrollViewer VerticalScrollBarVisibility="Auto"
+                   HorizontalScrollBarVisibility="Auto">
+      <TextBlock x:Name="CalculationDocumentationText"
+                 TextWrapping="Wrap"
+                 FontFamily="Consolas"
+                 FontSize="13"
+                 Foreground="{StaticResource TextBrush}"/>
+     </ScrollViewer>
+    </Border>
+   </TabItem>
+  </TabControl>
+
+  <Grid Grid.Row="4">
+   <Grid.ColumnDefinitions>
+    <ColumnDefinition Width="*"/>
+    <ColumnDefinition Width="Auto"/>
+   </Grid.ColumnDefinitions>
+   <TextBlock x:Name="StatusText" Text="Bereit." Style="{StaticResource MutedText}"/>
+   <Button Grid.Column="1" Content="Ergebnisse öffnen" Width="{StaticResource ResultsButtonWidth}"
+           IsEnabled="False" x:Name="ResultsButton" Click="Results_Click"/>
+  </Grid>
+ </Grid>
+</Window>
