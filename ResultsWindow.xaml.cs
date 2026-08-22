@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
@@ -63,7 +64,76 @@ public partial class ResultsWindow : Window
   ApplyGroupHeaderColors();
 
   CapitalChart.SizeChanged += (_, _) => DrawCapitalChart();
-  Loaded += (_, _) => DrawCapitalChart();
+  Loaded += (_, _) =>
+  {
+   DrawCapitalChart();
+   UpdateYearOverviewLayout();
+  };
+
+  YearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
+  StressYearGrid.LayoutUpdated += (_, _) => UpdateYearOverviewLayout();
+ }
+
+ private void UpdateYearOverviewLayout()
+ {
+  SetGroupWidth(BasePlanGroupColumn, YearGrid, 0, 3);
+  SetGroupWidth(BaseExpenseGroupColumn, YearGrid, 3, 6);
+  SetGroupWidth(BasePensionGroupColumn, YearGrid, 9, 2);
+  SetGroupWidth(BaseIncomeGroupColumn, YearGrid, 11, 3);
+  SetGroupWidth(BaseTaxGroupColumn, YearGrid, 14, 1);
+  SetGroupWidth(BaseWealthGroupColumn, YearGrid, 15, 1);
+  SetGroupWidth(BaseStatusGroupColumn, YearGrid, 16, 1);
+  SetGridWidth(YearGrid, BaseGroupHeaderGrid);
+
+  SetGroupWidth(StressPlanGroupColumn, StressYearGrid, 0, 3);
+  SetGroupWidth(StressExpenseGroupColumn, StressYearGrid, 3, 5);
+  SetGroupWidth(StressPensionGroupColumn, StressYearGrid, 8, 1);
+  SetGroupWidth(StressIncomeGroupColumn, StressYearGrid, 9, 2);
+  SetGroupWidth(StressTaxGroupColumn, StressYearGrid, 11, 1);
+  SetGroupWidth(StressWealthGroupColumn, StressYearGrid, 12, 2);
+  SetGroupWidth(StressStatusGroupColumn, StressYearGrid, 14, 1);
+  SetGridWidth(StressYearGrid, StressGroupHeaderGrid);
+ }
+
+ private static void SetGroupWidth(
+  ColumnDefinition groupColumn,
+  DataGrid dataGrid,
+  int firstColumnIndex,
+  int columnCount)
+ {
+  double width = 0d;
+
+  for (int index = firstColumnIndex; index < firstColumnIndex + columnCount; index++)
+   width += dataGrid.Columns[index].ActualWidth;
+
+  if (width > 0d)
+   groupColumn.Width = new GridLength(width);
+ }
+
+ private static void SetGridWidth(DataGrid dataGrid, Grid groupHeaderGrid)
+ {
+  double width = 0d;
+
+  foreach (DataGridColumn column in dataGrid.Columns)
+   width += column.ActualWidth;
+
+  if (width <= 0d)
+   return;
+
+  dataGrid.Width = width;
+  groupHeaderGrid.Width = width;
+ }
+
+ private void Window_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+ {
+  if (ResultsScrollViewer.ScrollableHeight <= 0)
+   return;
+
+  double newOffset = ResultsScrollViewer.VerticalOffset - e.Delta;
+  newOffset = Math.Max(0, Math.Min(newOffset, ResultsScrollViewer.ScrollableHeight));
+
+  ResultsScrollViewer.ScrollToVerticalOffset(newOffset);
+  e.Handled = true;
  }
 
  private void ApplyGroupHeaderColors()

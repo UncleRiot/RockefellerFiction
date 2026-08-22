@@ -4,10 +4,11 @@
  xmlns:sys="clr-namespace:System;assembly=mscorlib"
  Title="About RockefellerFiction"
  Icon="Resources/AppIcon.ico"
- Width="620"
- Height="330"
+ SizeToContent="WidthAndHeight"
+ MinWidth="560"
  MaxWidth="620"
- MaxHeight="330"
+ MinHeight="340"
+ MaxHeight="420"
  ResizeMode="NoResize"
  WindowStartupLocation="CenterOwner"
  ShowInTaskbar="False">
@@ -19,7 +20,7 @@
   </ResourceDictionary>
  </Window.Resources>
 
- <Grid Background="{StaticResource BgBrush}" Margin="20">
+ <Grid Background="{StaticResource BgBrush}" Margin="20,20,20,24">
   <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
    <RowDefinition Height="22"/>
@@ -100,7 +101,9 @@
            Width="134.25"
            Height="31.5"
            Stretch="Uniform"
-           VerticalAlignment="Center"/>
+           VerticalAlignment="Center"
+           Cursor="Hand"
+           MouseLeftButtonUp="KoFiImage_MouseLeftButtonUp"/>
 
     <Button Grid.Column="2"
             Content="OK"

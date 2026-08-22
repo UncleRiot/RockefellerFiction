@@ -13,6 +13,7 @@ public partial class AboutWindow : Window
 {
  private const string GitHubRepositoryUrl = "https://github.com/UncleRiot/RockefellerFiction";
  private const string GitHubLatestReleaseApiUrl = "https://api.github.com/repos/UncleRiot/RockefellerFiction/releases/latest";
+ private const string KoFiUrl = "https://ko-fi.com/uncleriot";
 
  private string? _updateUrl;
 
@@ -168,6 +169,11 @@ public partial class AboutWindow : Window
    FileName = url,
    UseShellExecute = true
   });
+ }
+
+ private void KoFiImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+ {
+  OpenUrl(KoFiUrl);
  }
 
  private void Ok_Click(object sender, RoutedEventArgs e)

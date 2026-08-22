@@ -1,9 +1,9 @@
 {
   "FormatVersion": 1,
   "Settings": {
-    "PlanningYear": 2038,
-    "Person1Age": 63,
-    "Person2Age": 58,
+    "PlanningYear": 2032,
+    "Person1Age": 61,
+    "Person2Age": 56,
     "Person1RetirementAge": 63,
     "Person2RetirementAge": 58,
     "Person1EndAge": 90,
@@ -46,7 +46,7 @@
     "StressSecondCrashEnabled": false,
     "StressSecondCrashYear": 2045,
     "StressSecondCrashPercent": -0.25,
-    "StartCapital": 400000,
+    "StartCapital": 500000,
     "HouseIncluded": false,
     "HouseSaleYear": 0,
     "HouseNetSaleProceeds": 0,
