@@ -125,3 +125,8 @@ Die Berechnungen beruhen auf den eingegebenen Annahmen und den im Programm hinte
 <br><br>
 
 <img width="2295" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/e1e5f97d-22e2-404d-a626-b47fcb4a4717" />
+
+<br><br>
+
+<img width="2213" height="1037" alt="grafik" src="https://github.com/user-attachments/assets/a8e21a59-057d-4ca9-9126-940b8d29065f" />
+
