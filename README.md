@@ -96,3 +96,32 @@ Die Anwendung speichert ihre Dateien im Programmverzeichnis:
 RockefellerFiction ist ein Planungs- und Simulationswerkzeug.
 
 Die Berechnungen beruhen auf den eingegebenen Annahmen und den im Programm hinterlegten Modellregeln. Zukünftige Steuer-, Renten-, Versicherungs- oder Kapitalmarktentwicklungen können davon abweichen.
+
+
+## Screenshots
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/5b1dac74-d67c-4707-bcd7-0f00812d2c61" />
+
+<br><br>
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/eb6a7d08-88ff-4919-a1d9-c089bedd7753" />
+
+<br><br>
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/5a894436-31ab-4225-a116-233e03ce956b" />
+
+<br><br>
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/e335d9ce-8cda-453b-ad1e-b262ac52089c" />
+
+<br><br>
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/48c851d7-c41f-4b64-bb79-1019cc70f25a" />
+
+<br><br>
+
+<img width="1241" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/ba2c2ade-f515-4273-8021-1045793a0743" />
+
+<br><br>
+
+<img width="2295" height="1380" alt="grafik" src="https://github.com/user-attachments/assets/e1e5f97d-22e2-404d-a626-b47fcb4a4717" />
