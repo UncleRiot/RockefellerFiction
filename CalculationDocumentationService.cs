@@ -91,7 +91,7 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "4. Rente",
-   "Vor dem jeweiligen Rentenalter wird keine gesetzliche Rente angesetzt. Ab Rentenbeginn wird die hinterlegte Monatsrente auf zwölf Monate hochgerechnet und mit der Rentensteigerung fortgeschrieben. Danach werden die im PensionService verwendeten Kranken-, Zusatz- und Pflegeanteile abgezogen.",
+   "Vor dem jeweiligen Rentenalter wird keine gesetzliche Rente angesetzt. Die hinterlegte Monatsrente muss die bereits erworbene Rente ohne weitere Beitragszahlungen sein; dadurch sind künftig nicht mehr erworbene Rentenpunkte bereits berücksichtigt. Beginnt die Rente vor 67, wird sie um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %, dauerhaft vermindert. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft. Ab Rentenbeginn wird die so angepasste Monatsrente auf zwölf Monate hochgerechnet und mit der Rentensteigerung fortgeschrieben. Danach werden die im PensionService verwendeten Kranken-, Zusatz- und Pflegeanteile abgezogen.",
    "PensionService.CalculateAnnualPension");
 
   AppendSection(

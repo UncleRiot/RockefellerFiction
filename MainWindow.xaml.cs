@@ -42,27 +42,27 @@ public partial class MainWindow : Window
  {
   _fieldNumber = 0;
 
-  AddSection("Startvermögen");
+  AddSection("1. Startvermögen");
   AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital,
    "Trage hier das gesamte Geld ein, das dir zu Beginn der Planung tatsächlich zum Anlegen und für spätere Ausgaben zur Verfügung steht. Beispiel: Beginnt deine Planung 2027 und du hast dann 1.250.000 € frei verfügbares Vermögen, trägst du 1.250.000 € ein. Der Wert des Hauses gehört hier nicht hinein, solange ein Hausverkauf nicht separat berücksichtigt wird.");
 
-  AddSection("Planung");
-  AddInt("PlanningYear", "Planungsjahr", _settings.PlanningYear,
-   "Trage das Kalenderjahr ein, ab dem die Vermögensplanung starten soll. Beispiel: Wenn ab 2027 Ausgaben, GKV/Pflege, Kapitalerträge und spätere Renten berücksichtigt werden sollen, trägst du 2027 ein. Das Planungsjahr ist nicht automatisch das Jahr des Rentenbeginns.");
-  AddInt("Person1Age", "Alter Person 1 bei vorzeitigem Arbeitsende", _settings.Person1Age,
-   "Trage das Alter ein, in dem Person 1 aufgrund des vorhandenen Vermögens dauerhaft aufhört zu arbeiten. Gemeint ist ausdrücklich das vorzeitige Arbeitsende vor Beginn der gesetzlichen Rente. Beispiel: Person 1 beendet die Erwerbstätigkeit mit 52 Jahren und bezieht die gesetzliche Rente erst später; dann trägst du hier 52 ein.");
-  AddInt("Person2Age", "Alter Person 2 bei vorzeitigem Arbeitsende", _settings.Person2Age,
-   "Trage das Alter ein, in dem Person 2 aufgrund des vorhandenen Vermögens dauerhaft aufhört zu arbeiten. Gemeint ist ausdrücklich das vorzeitige Arbeitsende vor Beginn der gesetzlichen Rente. Beispiel: Person 2 beendet die Erwerbstätigkeit mit 47 Jahren und bezieht die gesetzliche Rente erst später; dann trägst du hier 47 ein.");
+  AddSection("2. Planung");
+  AddInt("PlanningYear", "Jahr des vorzeitigen Arbeitsendes", _settings.PlanningYear,
+   "Trage das Kalenderjahr ein, ab dem ihr dauerhaft aufhören möchtet zu arbeiten und die Vermögensplanung beginnen soll. Dieses Jahr liegt typischerweise vor dem Beginn der gesetzlichen Rente. Es ist ausdrücklich nicht das Rentenbeginnjahr.");
+  AddInt("Person1CurrentAge", "Aktuelles Alter Person 1", _settings.Person1Age - (_settings.PlanningYear - DateTime.Today.Year),
+   "Trage das aktuelle Alter von Person 1 ein. Zusammen mit dem Jahr des vorzeitigen Arbeitsendes berechnet das Programm automatisch das Alter beim Arbeitsende. Beispiel: Bist du heute 45 Jahre alt und liegt das Arbeitsende 10 Kalenderjahre in der Zukunft, rechnet das Programm ab dem Arbeitsende mit Alter 55.");
+  AddInt("Person2CurrentAge", "Aktuelles Alter Person 2", _settings.Person2Age - (_settings.PlanningYear - DateTime.Today.Year),
+   "Trage das aktuelle Alter von Person 2 ein. Zusammen mit dem Jahr des vorzeitigen Arbeitsendes berechnet das Programm automatisch das Alter beim Arbeitsende. Beispiel: Bist du heute 40 Jahre alt und liegt das Arbeitsende 10 Kalenderjahre in der Zukunft, rechnet das Programm ab dem Arbeitsende mit Alter 50.");
   AddInt("Person1RetirementAge", "Beginn gesetzliche Rente Person 1", _settings.Person1RetirementAge,
-   "Trage das Alter ein, ab dem Person 1 die gesetzliche Altersrente tatsächlich beziehen soll. Dieses Alter kann deutlich nach dem vorzeitigen Arbeitsende liegen.");
+   "Trage das Alter ein, ab dem Person 1 die gesetzliche Altersrente tatsächlich beziehen soll. Beispiel: 63 bedeutet Rentenbeginn mit 63. Bei einem Beginn vor 67 reduziert das Programm die hinterlegte bereits erworbene Monatsrente zusätzlich automatisch um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %. Die bis 67 künftig nicht mehr erworbenen Rentenpunkte werden hier nicht nochmals abgezogen; sie müssen bereits dadurch berücksichtigt sein, dass bei der Rentenhöhe der Wert aus der Renteninformation ohne weitere Beitragszahlungen eingetragen wird. Verwende nicht die Hochrechnung mit weiteren Beiträgen bis 67. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft.");
   AddInt("Person2RetirementAge", "Beginn gesetzliche Rente Person 2", _settings.Person2RetirementAge,
-   "Trage das Alter ein, ab dem Person 2 die gesetzliche Altersrente tatsächlich beziehen soll. Dieses Alter kann deutlich nach dem vorzeitigen Arbeitsende liegen.");
+   "Trage das Alter ein, ab dem Person 2 die gesetzliche Altersrente tatsächlich beziehen soll. Beispiel: 63 bedeutet Rentenbeginn mit 63. Bei einem Beginn vor 67 reduziert das Programm die hinterlegte bereits erworbene Monatsrente zusätzlich automatisch um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %. Die bis 67 künftig nicht mehr erworbenen Rentenpunkte werden hier nicht nochmals abgezogen; sie müssen bereits dadurch berücksichtigt sein, dass bei der Rentenhöhe der Wert aus der Renteninformation ohne weitere Beitragszahlungen eingetragen wird. Verwende nicht die Hochrechnung mit weiteren Beiträgen bis 67. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft.");
   AddInt("Person1EndAge", "Lebenserwartung Person 1", _settings.Person1EndAge,
    "Trage das Alter ein, bis zu dem die Planung für Person 1 reichen soll. Das Programm verwendet diesen Wert als angenommenes Lebensalter für die langfristige Vermögensplanung.");
   AddInt("Person2EndAge", "Lebenserwartung Person 2", _settings.Person2EndAge,
    "Trage das Alter ein, bis zu dem die Planung für Person 2 reichen soll. Das Programm verwendet diesen Wert als angenommenes Lebensalter für die langfristige Vermögensplanung.");
 
-  AddSection("Lebensstandard & Inflation");
+  AddSection("3. Lebensstandard & Inflation");
   AddMoney("MonthlyLivingCosts", "Monatliche Ausgaben für das Leben", _settings.MonthlyLivingCosts,
    "Haus, Essen, Auto, Freizeit und private Versicherungen. Kranken- und Pflegeversicherung werden separat berücksichtigt.");
   AddPercent("InflationRate", "Inflation pro Jahr", _settings.InflationRate,
@@ -83,17 +83,17 @@ public partial class MainWindow : Window
    "Automatisch berechneter Monatsbeitrag aus den aktuell eingestellten Kapitalerträgen. Die Kapitalerträge werden 50/50 auf beide Personen verteilt.");
   AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m,
    "Automatisch berechneter Monatsbeitrag aus den aktuell eingestellten Kapitalerträgen. Die Kapitalerträge werden 50/50 auf beide Personen verteilt.");
-  AddSection("Gesetzliche Rente");
+  AddSection("4. Gesetzliche Rente");
   AddMoney("Person1PensionGrossMonthly", "Bereits erworbene Rente Person 1 pro Monat", _settings.Person1PensionGrossMonthly,
-   "Bruttorente laut Renteninformation für den Fall, dass keine weiteren Beiträge mehr gezahlt werden.");
+   "Trage ausschließlich die Bruttorente aus der Renteninformation ein, die bereits erworben ist und für den Fall gilt, dass ab jetzt keine weiteren Beiträge mehr gezahlt werden. Genau dieser Wert bildet ab, dass nach dem vorzeitigen Arbeitsende keine zusätzlichen Rentenpunkte mehr hinzukommen. Verwende ausdrücklich nicht die höhere Hochrechnung, die weitere Beitragszahlungen bis zur Regelaltersgrenze unterstellt. Wenn bei Rentenbeginn 63 eingetragen ist, zieht das Programm von diesem bereits reduzierten Basiswert zusätzlich den vorzeitigen Rentenabschlag von bis zu 14,4 % ab.");
   AddMoney("Person2PensionGrossMonthly", "Bereits erworbene Rente Person 2 pro Monat", _settings.Person2PensionGrossMonthly,
-   "Bruttorente laut Renteninformation für den Fall, dass keine weiteren Beiträge mehr gezahlt werden.");
+   "Trage ausschließlich die Bruttorente aus der Renteninformation ein, die bereits erworben ist und für den Fall gilt, dass ab jetzt keine weiteren Beiträge mehr gezahlt werden. Genau dieser Wert bildet ab, dass nach dem vorzeitigen Arbeitsende keine zusätzlichen Rentenpunkte mehr hinzukommen. Verwende ausdrücklich nicht die höhere Hochrechnung, die weitere Beitragszahlungen bis zur Regelaltersgrenze unterstellt. Wenn bei Rentenbeginn 63 eingetragen ist, zieht das Programm von diesem bereits reduzierten Basiswert zusätzlich den vorzeitigen Rentenabschlag von bis zu 14,4 % ab.");
   AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1,
    "Wenn aktiv, wird für die Rentenphase die Krankenversicherung der Rentner angenommen.");
   AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2,
    "Wenn aktiv, wird für die Rentenphase die Krankenversicherung der Rentner angenommen.");
 
-  AddSection("Sichere Reserve & Rücklagen");
+  AddSection("5. Sichere Reserve & Rücklagen");
   AddDecimal("ReserveYears", "Sichere Reserve in Jahresausgaben", _settings.ReserveYears,
    "Wie viele Jahre eures Lebensbedarfs sicher in Tages-/Festgeld liegen sollen. Default: 2 Jahre.");
   AddBool("AutoRefillReserve", "Reserve automatisch wieder auffüllen", _settings.AutoRefillReserve,
@@ -120,7 +120,7 @@ public partial class MainWindow : Window
   AddMoney("OtherReserveTarget", "Sonstiges / Unvorhergesehenes Rücklage", _settings.OtherReserveTarget,
    "Optionaler zusätzlicher Puffer. Default 0 €.");
 
-  AddSection("Anlagen – konservative Defaultwerte");
+  AddSection("6. Anlagen – konservative Defaultwerte");
   AddPercent("WorldEtfReturn", "MSCI World / Welt-ETF Gesamtrendite", _settings.WorldEtfReturn,
    "Fester durchschnittlicher nominaler Jahreswert für Kursentwicklung plus Ausschüttungen.");
   AddPercent("WorldEtfDistribution", "MSCI World / Welt-ETF Ausschüttung", _settings.WorldEtfDistribution,
@@ -136,7 +136,7 @@ public partial class MainWindow : Window
   AddBool("DividendSurplusReinvest", "Nicht benötigte Dividenden wieder anlegen", _settings.DividendSurplusReinvest,
    "Default aus: Ausschüttungen stehen vollständig für euren Lebensstandard zur Verfügung.");
 
-  AddSection("Strategie & Aufteilung");
+  AddSection("7. Strategie & Aufteilung");
   AddChoice("Strategy", "Strategie", _settings.Strategy,
    ["Sicherheit", "Ausgewogen", "Wachstum"],
    "Das Programm kann eine Strategie empfehlen. Du kannst sie jederzeit manuell ändern.");
@@ -149,13 +149,13 @@ public partial class MainWindow : Window
   AddPercent("AllocDividendStocks", "Anteil Dividenden-Aktien", _allocation.DividendStocks,
    "Anteil für einzelne Dividenden-Aktien.");
 
-  AddSection("Steuern");
+  AddSection("8. Steuern");
   AddMoney("CapitalGainsAllowance", "Sparer-Pauschbetrag gemeinsam", _settings.CapitalGainsAllowance,
    "Gemeinsamer jährlicher Freibetrag für Kapitalerträge. Default: 2.000 €.");
   AddBool("ChurchTaxEnabled", "Kirchensteuer berücksichtigen", _settings.ChurchTaxEnabled,
    "Bei euch standardmäßig aus.");
 
-  AddSection("Stressszenario");
+  AddSection("9. Stressszenario");
   AddChoice("StressCrashPercent", "Crash-Stärke am Anfang", FormatPercentChoice(_settings.StressCrashPercent),
    ["-15 %", "-25 %", "-40 %"],
    "Zusätzlicher Kursrückgang im ersten Planungsjahr auf die Aktien-/ETF-Anteile.");
@@ -169,7 +169,7 @@ public partial class MainWindow : Window
    ["-15 %", "-25 %", "-40 %"],
    "Zusätzlicher Kursrückgang im gewählten Jahr.");
 
-  AddSection("Haus optional");
+  AddSection("10. Haus optional");
   AddBool("HouseIncluded", "Hausverkauf in Planung berücksichtigen", _settings.HouseIncluded,
    "Standard aus. Wenn aktiv, kann ein späterer Netto-Verkaufserlös als Einnahme berücksichtigt werden.");
   AddInt("HouseSaleYear", "Haus-Verkaufsjahr", _settings.HouseSaleYear,
@@ -381,8 +381,9 @@ public partial class MainWindow : Window
   try
   {
    previewSettings.StartCapital = ReadDecimal("StartCapital", 0m, 1000000000m);
-   previewSettings.Person1Age = ReadInt("Person1Age");
-   previewSettings.Person2Age = ReadInt("Person2Age");
+   int planningYear = ReadInt("PlanningYear");
+   previewSettings.Person1Age = ReadInt("Person1CurrentAge") + (planningYear - DateTime.Today.Year);
+   previewSettings.Person2Age = ReadInt("Person2CurrentAge") + (planningYear - DateTime.Today.Year);
    previewSettings.Person1RetirementAge = ReadInt("Person1RetirementAge");
    previewSettings.Person2RetirementAge = ReadInt("Person2RetirementAge");
    previewSettings.CashInterestRate = ReadPercent("CashInterestRate", -0.05m, 0.20m);
@@ -438,13 +439,36 @@ public partial class MainWindow : Window
    ? " Tages-/Festgeld ist kleiner als Reserve + Rücklagen."
    : "";
 
-  StatusText.Text =
-   $"Basis: {_baseResult.OverallStatus} | Stress: {_stressResult.OverallStatus} | Empfehlung: {recommended}.{reserveWarning}";
+  StatusText.Inlines.Clear();
 
-  StatusText.Foreground =
-   (_baseResult.ReachesPlanEnd && _stressResult.ReachesPlanEnd)
+  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Basis: {_baseResult.OverallStatus}")
+  {
+   Foreground = _baseResult.ReachesPlanEnd
     ? (Brush)FindResource("SuccessBrush")
-    : (Brush)FindResource("WarningBrush");
+    : (Brush)FindResource("DangerBrush")
+  });
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
+  {
+   Foreground = (Brush)FindResource("MutedTextBrush")
+  });
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Stress: {_stressResult.OverallStatus}")
+  {
+   Foreground = _stressResult.ReachesPlanEnd
+    ? (Brush)FindResource("SuccessBrush")
+    : (Brush)FindResource("DangerBrush")
+  });
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
+  {
+   Foreground = (Brush)FindResource("MutedTextBrush")
+  });
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Empfehlung: {recommended}.{reserveWarning}")
+  {
+   Foreground = (Brush)FindResource("WarningBrush")
+  });
  }
 
  private void Save_Click(object sender, RoutedEventArgs e)
@@ -544,6 +568,16 @@ public partial class MainWindow : Window
   }
  }
 
+ private void About_Click(object sender, RoutedEventArgs e)
+ {
+  var window = new AboutWindow
+  {
+   Owner = this
+  };
+
+  window.ShowDialog();
+ }
+
  private void Results_Click(object sender, RoutedEventArgs e)
  {
   if (_baseResult == null || _stressResult == null) return;
@@ -562,8 +596,8 @@ public partial class MainWindow : Window
   try
   {
    _settings.PlanningYear = ReadInt("PlanningYear");
-   _settings.Person1Age = ReadInt("Person1Age");
-   _settings.Person2Age = ReadInt("Person2Age");
+   _settings.Person1Age = ReadInt("Person1CurrentAge") + (_settings.PlanningYear - DateTime.Today.Year);
+   _settings.Person2Age = ReadInt("Person2CurrentAge") + (_settings.PlanningYear - DateTime.Today.Year);
    _settings.Person1RetirementAge = ReadInt("Person1RetirementAge");
    _settings.Person2RetirementAge = ReadInt("Person2RetirementAge");
    _settings.Person1EndAge = ReadInt("Person1EndAge");
@@ -631,11 +665,11 @@ public partial class MainWindow : Window
 
    if (_settings.Person1RetirementAge < _settings.Person1Age ||
        _settings.Person2RetirementAge < _settings.Person2Age)
-    throw new InvalidOperationException("Rentenalter darf nicht unter dem aktuellen Alter liegen.");
+    throw new InvalidOperationException("Der Beginn der gesetzlichen Rente darf nicht vor dem vorzeitigen Arbeitsende liegen.");
 
    if (_settings.Person1EndAge < _settings.Person1RetirementAge ||
        _settings.Person2EndAge < _settings.Person2RetirementAge)
-    throw new InvalidOperationException("Planungsende muss nach dem Rentenbeginn liegen.");
+    throw new InvalidOperationException("Die Lebenserwartung muss nach dem Beginn der gesetzlichen Rente liegen.");
 
    if (_settings.CarReplacementYears <= 0)
     throw new InvalidOperationException("Auto-Ersatz nach Jahren muss größer als 0 sein.");

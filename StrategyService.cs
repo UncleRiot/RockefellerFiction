@@ -18,10 +18,10 @@ public static class StrategyService
   {
    StrategyAllocation allocation = GetDefault(candidate);
 
-   bool basisOk = ProjectionService.ReachesPlanEnd(settings, allocation, false);
-   bool stressOk = ProjectionService.ReachesPlanEnd(settings, allocation, true);
+   ProjectionResult basisResult = ProjectionService.Calculate(settings, allocation, false);
+   ProjectionResult stressResult = ProjectionService.Calculate(settings, allocation, true);
 
-   if (basisOk && stressOk)
+   if (basisResult.ReachesPlanEnd && stressResult.ReachesPlanEnd)
     return candidate;
   }
 

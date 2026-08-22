@@ -10,7 +10,10 @@
   </ResourceDictionary>
  </Window.Resources>
 
- <Grid Margin="{StaticResource PagePadding}" Background="{StaticResource BgBrush}">
+ <ScrollViewer HorizontalScrollBarVisibility="Auto"
+               VerticalScrollBarVisibility="Auto"
+               CanContentScroll="False">
+  <Grid Margin="{StaticResource PagePadding}" Background="{StaticResource BgBrush}">
   <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/>
    <RowDefinition Height="12"/>
@@ -352,5 +355,6 @@
     </DataGrid>
    </TabItem>
   </TabControl>
- </Grid>
+  </Grid>
+ </ScrollViewer>
 </Window>

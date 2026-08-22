@@ -5,6 +5,9 @@ public static class PensionService
  private const decimal HealthInsuranceEmployeeShare = 0.073m;
  private const decimal AdditionalContributionEmployeeShare = 0.0145m;
  private const decimal CareInsuranceChildless = 0.042m;
+ private const int RegularRetirementAge = 67;
+ private const decimal EarlyRetirementReductionPerMonth = 0.003m;
+ private const decimal MaximumEarlyRetirementReduction = 0.144m;
 
  public static (decimal Gross, decimal Net) CalculateAnnualPension(
   PlannerSettings s, int year, int age1, int age2)
@@ -15,13 +18,19 @@ public static class PensionService
   if (age1 >= s.Person1RetirementAge)
   {
    int years = age1 - s.Person1RetirementAge;
-   gross1 = s.Person1PensionGrossMonthly * 12m * Pow(1m + s.PensionIncreaseRate, years);
+   gross1 = s.Person1PensionGrossMonthly
+    * CalculateEarlyRetirementFactor(s.Person1RetirementAge)
+    * 12m
+    * Pow(1m + s.PensionIncreaseRate, years);
   }
 
   if (age2 >= s.Person2RetirementAge)
   {
    int years = age2 - s.Person2RetirementAge;
-   gross2 = s.Person2PensionGrossMonthly * 12m * Pow(1m + s.PensionIncreaseRate, years);
+   gross2 = s.Person2PensionGrossMonthly
+    * CalculateEarlyRetirementFactor(s.Person2RetirementAge)
+    * 12m
+    * Pow(1m + s.PensionIncreaseRate, years);
   }
 
   decimal gross = gross1 + gross2;
@@ -33,6 +42,16 @@ public static class PensionService
    deductions += gross2 * (HealthInsuranceEmployeeShare + AdditionalContributionEmployeeShare + CareInsuranceChildless);
 
   return (gross, Math.Max(0m, gross - deductions));
+ }
+
+ private static decimal CalculateEarlyRetirementFactor(int retirementAge)
+ {
+  int monthsEarly = Math.Max(0, (RegularRetirementAge - retirementAge) * 12);
+  decimal reduction = Math.Min(
+   MaximumEarlyRetirementReduction,
+   monthsEarly * EarlyRetirementReductionPerMonth);
+
+  return 1m - reduction;
  }
 
  private static decimal Pow(decimal value, int exponent)

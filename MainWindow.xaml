@@ -28,14 +28,21 @@
    </Grid.ColumnDefinitions>
    <StackPanel>
     <TextBlock Text="RockefellerFiction" Style="{StaticResource HeaderTitle}"/>
-    <TextBlock Text="Alle Eingaben untereinander. Blaues ? = Erklärung."
+    <TextBlock Text="Blaues ? = Erklärung."
                Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+    <TextBlock Text="WARNUNG: Experimentelles Tool. Nicht für reale Finanzplanung oder tatsächliche Finanz-, Anlage-, Steuer-, Rechts- oder Rentenentscheidungen verwenden. Die Ergebnisse sind unverbindliche Modellrechnungen und können unvollständig oder fehlerhaft sein. Keine Finanz-, Anlage-, Steuer-, Rechts- oder Rentenberatung. Vor realen Entscheidungen fachkundige Beratung und amtliche Auskünfte einholen."
+               Foreground="{StaticResource DangerBrush}"
+               FontWeight="SemiBold"
+               TextWrapping="Wrap"
+               MaxWidth="850"
+               Margin="0,8,16,0"/>
    </StackPanel>
-   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-    <Button Content="Berechnen" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Click="Calculate_Click"/>
-    <Button Content="Speichern" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Save_Click"/>
-    <Button Content="Export" Width="{StaticResource HeaderButtonWidth}" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
-    <Button Content="Import" Width="{StaticResource HeaderButtonWidth}" Style="{StaticResource SecondaryButton}" Click="Import_Click"/>
+   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+    <Button Content="Berechnen" Width="100" Padding="10,6" Margin="0,0,8,0" Click="Calculate_Click"/>
+    <Button Content="Speichern" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Save_Click"/>
+    <Button Content="Export" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
+    <Button Content="Import" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Import_Click"/>
+    <Button Content="About" Width="100" Padding="10,6" Style="{StaticResource SecondaryButton}" Click="About_Click"/>
    </StackPanel>
   </Grid>
 
@@ -44,7 +51,35 @@
               SelectionChanged="MainTabs_SelectionChanged">
    <TabItem Header="Eingaben">
     <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
-     <TabControl x:Name="InputSubTabs"/>
+     <TabControl x:Name="InputSubTabs">
+      <TabControl.ItemsPanel>
+       <ItemsPanelTemplate>
+        <UniformGrid Rows="2"/>
+       </ItemsPanelTemplate>
+      </TabControl.ItemsPanel>
+      <TabControl.Template>
+       <ControlTemplate TargetType="TabControl">
+        <Grid KeyboardNavigation.TabNavigation="Local">
+         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+         </Grid.RowDefinitions>
+         <ItemsPresenter Grid.Row="0"
+                         KeyboardNavigation.TabIndex="1"/>
+         <Border Grid.Row="1"
+                 Background="{TemplateBinding Background}"
+                 BorderBrush="{TemplateBinding BorderBrush}"
+                 BorderThickness="1"
+                 KeyboardNavigation.TabNavigation="Local"
+                 KeyboardNavigation.DirectionalNavigation="Contained"
+                 KeyboardNavigation.TabIndex="2">
+          <ContentPresenter x:Name="PART_SelectedContentHost"
+                            ContentSource="SelectedContent"/>
+         </Border>
+        </Grid>
+       </ControlTemplate>
+      </TabControl.Template>
+     </TabControl>
     </Border>
    </TabItem>
 
