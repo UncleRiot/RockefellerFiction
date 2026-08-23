@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -9,10 +9,10 @@
     <AssemblyName>RockefellerFiction</AssemblyName>
     <RootNamespace>RockefellerFiction</RootNamespace>
 
-    <Version>0.1.70</Version>
-    <AssemblyVersion>0.1.70</AssemblyVersion>
-    <FileVersion>0.1.70</FileVersion>
-    <InformationalVersion>0.1.70</InformationalVersion>
+    <Version>0.1.72</Version>
+    <AssemblyVersion>0.1.72</AssemblyVersion>
+    <FileVersion>0.1.72</FileVersion>
+    <InformationalVersion>0.1.72</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -21,5 +21,11 @@
     <Resource Include="Resources\Help.png" />
     <Resource Include="Resources\ko-fi.png" />
     <Resource Include="Resources\molotov.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="hints.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 </Project>

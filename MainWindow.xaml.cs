@@ -45,188 +45,109 @@ public partial class MainWindow : Window
   _fieldNumber = 0;
 
   AddSection("1. Startvermögen");
-  AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital,
-   "Trage hier das gesamte Geld ein, das dir zu Beginn der Planung tatsächlich zum Anlegen und für spätere Ausgaben zur Verfügung steht. Beispiel: Beginnt deine Planung 2027 und du hast dann 1.250.000 € frei verfügbares Vermögen, trägst du 1.250.000 € ein. Der Wert des Hauses gehört hier nicht hinein, solange ein Hausverkauf nicht separat berücksichtigt wird.");
+  AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital);
 
-  AddSection("2. Planung");
+        AddSection("2. Planung");
   AddChoice("HouseholdPersonCount", "Haushalt",
    _settings.HouseholdPersonCount == 1 ? "1 Person" : "2 Personen",
-   ["1 Person", "2 Personen"],
-   "Wähle, ob die Planung für eine alleinstehende Person oder für zwei Personen durchgeführt wird. Bei einer Person werden alle Eingaben und Berechnungen für Person 2 nicht berücksichtigt.");
-  AddInt("Person1CurrentAge", "Aktuelles Alter Person 1", _settings.Person1Age,
-   "Trage das aktuelle Alter von Person 1 ein. Zusammen mit dem vorzeitigen Arbeitsende von Person 1 berechnet das Programm automatisch das Alter beim Arbeitsende.");
-  AddInt("PlanningYear", "Vorzeitiges Arbeitsende Person 1", _settings.PlanningYear,
-   "Trage das Kalenderjahr ein, ab dem Person 1 dauerhaft aufhört zu arbeiten und die Vermögensplanung beginnt. Dieses Jahr ist nicht das Rentenbeginnjahr.");
-  AddInt("Person2CurrentAge", "Aktuelles Alter Person 2", _settings.Person2Age,
-   "Trage das aktuelle Alter von Person 2 ein. Zusammen mit dem vorzeitigen Arbeitsende von Person 2 berechnet das Programm automatisch das Alter beim Arbeitsende.");
+   ["1 Person", "2 Personen"]);
+  AddInt("Person1CurrentAge", "Aktuelles Alter Person 1", _settings.Person1Age);
+  AddInt("PlanningYear", "Vorzeitiges Arbeitsende Person 1", _settings.PlanningYear);
+  AddInt("Person2CurrentAge", "Aktuelles Alter Person 2", _settings.Person2Age);
   AddInt("Person2WorkEndYear", "Vorzeitiges Arbeitsende Person 2",
-   _settings.Person2WorkEndYear > 0 ? _settings.Person2WorkEndYear : _settings.PlanningYear,
-   "Trage das Kalenderjahr ein, ab dem Person 2 dauerhaft aufhört zu arbeiten. Bis zu diesem Jahr wird das eingetragene Nettoeinkommen berücksichtigt; im Arbeitsende-Jahr selbst wird kein Arbeitseinkommen mehr angesetzt.");
-  AddMoney("Person2NetIncomeMonthly", "Nettoeinkommen Person 2 pro Monat", _settings.Person2NetIncomeMonthly,
-   "Aktuelles monatliches Nettoeinkommen von Person 2. Es wird nur für Jahre vor dem vorzeitigen Arbeitsende von Person 2 berücksichtigt.");
-  AddPercent("Person2NetIncomeIncreaseRate", "Nettoeinkommen-Steigerung Person 2 pro Jahr", _settings.Person2NetIncomeIncreaseRate,
-   "Jährliche angenommene Steigerung des Nettoeinkommens von Person 2. Default: 0 %.");
-  AddInt("Person1RetirementAge", "Beginn gesetzliche Rente Person 1", _settings.Person1RetirementAge,
-   "Trage das Alter ein, ab dem Person 1 die gesetzliche Altersrente tatsächlich beziehen soll. Beispiel: 63 bedeutet Rentenbeginn mit 63. Bei einem Beginn vor 67 reduziert das Programm die hinterlegte bereits erworbene Monatsrente zusätzlich automatisch um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %. Die bis 67 künftig nicht mehr erworbenen Rentenpunkte werden hier nicht nochmals abgezogen; sie müssen bereits dadurch berücksichtigt sein, dass bei der Rentenhöhe der Wert aus der Renteninformation ohne weitere Beitragszahlungen eingetragen wird. Verwende nicht die Hochrechnung mit weiteren Beiträgen bis 67. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft.");
-  AddInt("Person2RetirementAge", "Beginn gesetzliche Rente Person 2", _settings.Person2RetirementAge,
-   "Trage das Alter ein, ab dem Person 2 die gesetzliche Altersrente tatsächlich beziehen soll. Beispiel: 63 bedeutet Rentenbeginn mit 63. Bei einem Beginn vor 67 reduziert das Programm die hinterlegte bereits erworbene Monatsrente zusätzlich automatisch um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %. Die bis 67 künftig nicht mehr erworbenen Rentenpunkte werden hier nicht nochmals abgezogen; sie müssen bereits dadurch berücksichtigt sein, dass bei der Rentenhöhe der Wert aus der Renteninformation ohne weitere Beitragszahlungen eingetragen wird. Verwende nicht die Hochrechnung mit weiteren Beiträgen bis 67. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft.");
-  AddInt("Person1EndAge", "Lebenserwartung Person 1", _settings.Person1EndAge,
-   "Trage das Alter ein, bis zu dem die Planung für Person 1 reichen soll. Das Programm verwendet diesen Wert als angenommenes Lebensalter für die langfristige Vermögensplanung.");
-  AddInt("Person2EndAge", "Lebenserwartung Person 2", _settings.Person2EndAge,
-   "Trage das Alter ein, bis zu dem die Planung für Person 2 reichen soll. Das Programm verwendet diesen Wert als angenommenes Lebensalter für die langfristige Vermögensplanung.");
+   _settings.Person2WorkEndYear > 0 ? _settings.Person2WorkEndYear : _settings.PlanningYear);
+  AddMoney("Person2NetIncomeMonthly", "Nettoeinkommen Person 2 pro Monat", _settings.Person2NetIncomeMonthly);
+  AddPercent("Person2NetIncomeIncreaseRate", "Nettoeinkommen-Steigerung Person 2 pro Jahr [Standardwert]", _settings.Person2NetIncomeIncreaseRate);
+  AddInt("Person1RetirementAge", "Beginn gesetzliche Rente Person 1", _settings.Person1RetirementAge);
+  AddInt("Person2RetirementAge", "Beginn gesetzliche Rente Person 2", _settings.Person2RetirementAge);
+  AddInt("Person1EndAge", "Lebenserwartung Person 1 [Standardwert]", _settings.Person1EndAge);
+  AddInt("Person2EndAge", "Lebenserwartung Person 2 [Standardwert]", _settings.Person2EndAge);
 
   AddSection("3. Steuern");
-  AddMoney("CapitalGainsAllowance", "Sparer-Pauschbetrag Haushalt [Standardwert]", _settings.CapitalGainsAllowance,
-   "Jährlicher im Modell verwendeter Gesamt-Pauschbetrag für Kapitalerträge des Haushalts. Beim Wechsel der Haushaltsgröße setzt das Programm automatisch 1.000 € für eine Person bzw. 2.000 € für zwei Personen. Der Wert bleibt anschließend frei editierbar. Nach dem modellierten Lebensende einer Person wird bei einem Zwei-Personen-Haushalt automatisch nur noch die Hälfte dieses Haushaltswerts verwendet.");
-  AddBool("JointTaxation", "Gemeinsame steuerliche Veranlagung", _settings.JointTaxation,
-   "Nur bei zwei Personen relevant. Ja bedeutet Zusammenveranlagung mit Splittingtarif für die im Modell berechnete Renten-Einkommensteuer. Nein berechnet die tarifliche Einkommensteuer für beide Personen getrennt. Die individuelle Zuordnung von Kapitalerträgen zu einzelnen Personen wird weiterhin nicht separat modelliert.");
-  AddBool("ChurchTaxEnabled", "Kirchensteuer berücksichtigen", _settings.ChurchTaxEnabled,
-   "Wenn aktiviert, wird die Kirchensteuer sowohl bei der tariflichen Renten-Einkommensteuer als auch bei der Kapitalbesteuerung berücksichtigt.");
-  AddPercent("ChurchTaxRate", "Kirchensteuersatz", _settings.ChurchTaxRate,
-   "Freie Eingabe des Kirchensteuersatzes in Prozent. Default: 0 %. Der Wert wird nur berücksichtigt, wenn Kirchensteuer aktiviert ist.");
-  AddPercent("AdvanceLumpSumBaseRate", "Basiszins Vorabpauschale [Standardwert]", _settings.AdvanceLumpSumBaseRate,
-   "Basiszins nach § 18 Abs. 4 InvStG. Default für 2026: 3,20 %. Der Wert ist frei editierbar, da das BMF ihn jährlich neu veröffentlicht.");
+  AddMoney("CapitalGainsAllowance", "Sparer-Pauschbetrag Haushalt [Standardwert]", _settings.CapitalGainsAllowance);
+  AddBool("JointTaxation", "Gemeinsame steuerliche Veranlagung [Standardwert]", _settings.JointTaxation);
+  AddBool("ChurchTaxEnabled", "Kirchensteuer berücksichtigen", _settings.ChurchTaxEnabled);
+  AddPercent("ChurchTaxRate", "Kirchensteuersatz", _settings.ChurchTaxRate);
+  AddPercent("AdvanceLumpSumBaseRate", "Basiszins Vorabpauschale [Standardwert]", _settings.AdvanceLumpSumBaseRate);
 
   AddSection("4. Lebensstandard & Inflation");
-  AddMoney("MonthlyLivingCosts", "Monatliche Ausgaben für das Leben", _settings.MonthlyLivingCosts,
-   "Haus, Essen, Auto, Freizeit und private Versicherungen. Kranken- und Pflegeversicherung werden separat berücksichtigt.");
-  AddPercent("InflationRate", "Inflation pro Jahr [Standardwert]", _settings.InflationRate,
-   "Jährliche Preissteigerung. Aus heutigen Ausgaben werden automatisch zukünftige Ausgaben berechnet.");
-  AddPercent("PensionIncreaseRate", "Konservative Rentensteigerung pro Jahr [Standardwert]", _settings.PensionIncreaseRate,
-   "Jährliche angenommene Anpassung der gesetzlichen Rente. Default bewusst konservativ.");
-  AddMoney("VoluntaryHealthInsuranceMinimumMonthlyIncome", "GKV/Pflege Mindest-Bemessungsgrundlage pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMinimumMonthlyIncome,
-   "Untergrenze, auf deren Basis die freiwillige gesetzliche Kranken- und Pflegeversicherung mindestens berechnet wird.");
-  AddMoney("VoluntaryHealthInsuranceMaximumMonthlyIncome", "GKV/Pflege Beitragsbemessungsgrenze pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMaximumMonthlyIncome,
-   "Obergrenze der monatlichen Einnahmen, die für die freiwillige Kranken- und Pflegeversicherung berücksichtigt werden.");
-  AddPercent("VoluntaryHealthInsuranceRate", "GKV Beitragssatz ohne Krankengeld [Standardwert]", _settings.VoluntaryHealthInsuranceRate,
-   "Ermäßigter Beitragssatz der freiwilligen gesetzlichen Krankenversicherung ohne Krankengeldanspruch.");
-  AddPercent("VoluntaryHealthInsuranceAdditionalRate", "GKV Zusatzbeitrag [Standardwert]", _settings.VoluntaryHealthInsuranceAdditionalRate,
-   "Zusatzbeitrag der Krankenkasse. Default ist der aktuell verwendete Planungswert.");
-  AddPercent("CareInsuranceChildlessRate", "Pflegeversicherung kinderlos [Standardwert]", _settings.CareInsuranceChildlessRate,
-   "Gesamter Beitragssatz der Pflegeversicherung für Kinderlose.");
-  AddInt("HealthInsuranceBaseYear", "GKV/Pflege Basisjahr [Standardwert]", _settings.HealthInsuranceBaseYear,
-   "Kalenderjahr, für das Mindest-Bemessungsgrundlage, Beitragsbemessungsgrenze, Zusatzbeitrag und Pflegebeitrag gelten. Ab diesem Jahr werden ausschließlich die eingetragenen Änderungsannahmen fortgeschrieben.");
-  AddPercent("HealthInsuranceAssessmentIncreaseRate", "GKV/Pflege Bemessungsgrenzen Änderung p.a. [Standardwert]", _settings.HealthInsuranceAssessmentIncreaseRate,
-   "Relative jährliche Änderung der Mindest-Bemessungsgrundlage und Beitragsbemessungsgrenze. Default 0 %, weil es keine gesetzlich festgelegte langfristige Fortschreibungsrate gibt.");
-  AddPercent("HealthInsuranceAdditionalRateAnnualChange", "GKV Zusatzbeitrag Änderung p.a. in Prozentpunkten [Standardwert]", _settings.HealthInsuranceAdditionalRateAnnualChange,
-   "Jährliche Änderung des Zusatzbeitragssatzes in Prozentpunkten. Beispiel: 0,10 % erhöht 2,90 % nach einem Jahr auf 3,00 %. Default 0 %.");
-  AddPercent("CareInsuranceRateAnnualChange", "Pflegeversicherung Änderung p.a. in Prozentpunkten [Standardwert]", _settings.CareInsuranceRateAnnualChange,
-   "Jährliche Änderung des Pflege-Beitragssatzes in Prozentpunkten. Beispiel: 0,10 % erhöht 4,20 % nach einem Jahr auf 4,30 %. Default 0 %.");
-  AddReadOnlyMoney("CalculatedHealthPerson1Monthly", "Berechnete GKV/Pflege Person 1 pro Monat", 0m,
-   "Automatisch berechneter Monatsbeitrag aus den aktuell eingestellten Kapitalerträgen. Die Kapitalerträge werden 50/50 auf beide Personen verteilt.");
-  AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m,
-   "Automatisch berechneter Monatsbeitrag aus den aktuell eingestellten Kapitalerträgen. Die Kapitalerträge werden 50/50 auf beide Personen verteilt.");
+  AddMoney("MonthlyLivingCosts", "Monatliche Ausgaben für das Leben", _settings.MonthlyLivingCosts);
+  AddPercent("InflationRate", "Inflation pro Jahr [Standardwert]", _settings.InflationRate);
+  AddPercent("PensionIncreaseRate", "Konservative Rentensteigerung pro Jahr [Standardwert]", _settings.PensionIncreaseRate);
+  AddMoney("VoluntaryHealthInsuranceMinimumMonthlyIncome", "GKV/Pflege Mindest-Bemessungsgrundlage pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMinimumMonthlyIncome);
+  AddMoney("VoluntaryHealthInsuranceMaximumMonthlyIncome", "GKV/Pflege Beitragsbemessungsgrenze pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMaximumMonthlyIncome);
+  AddPercent("VoluntaryHealthInsuranceRate", "GKV Beitragssatz ohne Krankengeld [Standardwert]", _settings.VoluntaryHealthInsuranceRate);
+  AddPercent("VoluntaryHealthInsuranceAdditionalRate", "GKV Zusatzbeitrag [Standardwert]", _settings.VoluntaryHealthInsuranceAdditionalRate);
+  AddPercent("CareInsuranceChildlessRate", "Pflegeversicherung Beitragssatz", _settings.CareInsuranceChildlessRate);
+  AddInt("HealthInsuranceBaseYear", "GKV/Pflege Basisjahr [Standardwert]", _settings.HealthInsuranceBaseYear);
+  AddPercent("HealthInsuranceAssessmentIncreaseRate", "GKV/Pflege Bemessungsgrenzen Änderung p.a. [Standardwert]", _settings.HealthInsuranceAssessmentIncreaseRate);
+  AddPercent("HealthInsuranceAdditionalRateAnnualChange", "GKV Zusatzbeitrag Änderung p.a. in Prozentpunkten [Standardwert]", _settings.HealthInsuranceAdditionalRateAnnualChange);
+  AddPercent("CareInsuranceRateAnnualChange", "Pflegeversicherung Änderung p.a. in Prozentpunkten [Standardwert]", _settings.CareInsuranceRateAnnualChange);
+  AddReadOnlyMoney("CalculatedHealthPerson1Monthly", "Berechnete GKV/Pflege Person 1 pro Monat", 0m);
+  AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m);
   AddSection("5. Gesetzliche Rente");
-  AddMoney("Person1PensionGrossMonthly", "Bereits erworbene Rente Person 1 pro Monat", _settings.Person1PensionGrossMonthly,
-   "Trage ausschließlich die Bruttorente aus der Renteninformation ein, die bereits heute erworben ist und für den Fall gilt, dass ab jetzt keine weiteren Beiträge mehr gezahlt werden. Das Programm behandelt diesen Betrag als heutigen Rentenwert und schreibt ihn bis zum tatsächlichen Rentenbeginn mit der eingetragenen Rentensteigerung fort. Zusätzliche Rentenpunkte werden dabei nicht erzeugt. Verwende ausdrücklich nicht die höhere Hochrechnung, die weitere Beitragszahlungen bis zur Regelaltersgrenze unterstellt. Bei vorgezogenem Rentenbeginn wird zusätzlich der hinterlegte Rentenabschlag angewendet.");
-  AddMoney("Person2PensionGrossMonthly", "Voraussichtliche Rente Person 2 zum Arbeitsende pro Monat", _settings.Person2PensionGrossMonthly,
-   "Trage den voraussichtlichen monatlichen Bruttorentenanspruch ein, den Person 2 bis zu ihrem eingetragenen vorzeitigen Arbeitsende erworben haben wird. Das Programm behandelt diesen Betrag als Rentenwert zum Arbeitsende und schreibt ihn von dort bis zum tatsächlichen Rentenbeginn mit der eingetragenen Rentensteigerung fort. Der Wert soll die bis zum Arbeitsende noch entstehenden Rentenansprüche bereits enthalten, aber keinen zusätzlichen Rentenabschlag für einen vorgezogenen Rentenbeginn. Einen solchen Abschlag berechnet das Programm weiterhin anhand des eingetragenen Rentenbeginns.");
-  AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1,
-   "Wenn aktiv, wird in der Rentenphase KVdR angenommen. Wenn deaktiviert, wird freiwillige GKV/Pflege angenommen: Neben der gesetzlichen Rente werden die im Modell erfassten sonstigen beitragspflichtigen Einnahmen bis zur Beitragsbemessungsgrenze berücksichtigt; bei niedrigen Gesamteinnahmen greift die Mindest-Bemessungsgrundlage.");
-  AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2,
-   "Wenn aktiv, wird in der Rentenphase KVdR angenommen. Wenn deaktiviert, wird freiwillige GKV/Pflege angenommen: Neben der gesetzlichen Rente werden die im Modell erfassten sonstigen beitragspflichtigen Einnahmen bis zur Beitragsbemessungsgrenze berücksichtigt; bei niedrigen Gesamteinnahmen greift die Mindest-Bemessungsgrundlage.");
+  AddMoney("Person1PensionGrossMonthly", "Rente Person 1 – heute bereits erworben (brutto/Monat)", _settings.Person1PensionGrossMonthly);
+        AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – erwartet zum Arbeitsende (brutto/Monat)", _settings.Person2PensionGrossMonthly);
+        AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1);
+  AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2);
 
   AddSection("6. Sichere Reserve & Rücklagen");
-  AddDecimal("ReserveYears", "Sichere Reserve in Jahresausgaben [Standardwert]", _settings.ReserveYears,
-   "Wie viele Jahre eures Lebensbedarfs sicher in Tages-/Festgeld liegen sollen. Default: 2 Jahre.");
-  AddBool("AutoRefillReserve", "Reserve automatisch wieder auffüllen [Standardwert]", _settings.AutoRefillReserve,
-   "Wenn aktiv, wird eine verbrauchte Reserve später wieder bis zum Zielwert aufgefüllt.");
-  AddBool("UseReserveOnNegativeStockYear", "Bei negativem Aktienjahr zuerst Reserve nutzen [Standardwert]", _settings.UseReserveOnNegativeStockYear,
-   "Wenn Aktien/ETFs im Jahr negativ laufen, werden laufende Ausgaben zuerst aus der sicheren Reserve bezahlt.");
-  AddPercent("CashInterestRate", "Zins Tages-/Festgeld", _settings.CashInterestRate,
-   "Nominaler jährlicher Zinssatz für den sicheren Geldanteil.");
+  AddDecimal("ReserveYears", "Sichere Reserve in Jahresausgaben [Standardwert]", _settings.ReserveYears);
+  AddBool("AutoRefillReserve", "Reserve automatisch wieder auffüllen [Standardwert]", _settings.AutoRefillReserve);
+  AddBool("UseReserveOnNegativeStockYear", "Bei negativem Aktienjahr zuerst Reserve nutzen [Standardwert]", _settings.UseReserveOnNegativeStockYear);
+  AddPercent("CashInterestRate", "Zins Tages-/Festgeld [Standardwert]", _settings.CashInterestRate);
 
-  AddMoney("HouseTotalValue", "Hauswert inkl. Grundstück", _settings.HouseTotalValue,
-   "Gesamter heutiger Immobilienwert. Das Haus selbst zählt standardmäßig nicht als verfügbares Anlagevermögen.");
-  AddPercent("HouseBuildingShare", "Anteil Gebäude am Hauswert [Standardwert]", _settings.HouseBuildingShare,
-   "Geschätzter Anteil des Gebäudes am Gesamtwert, ohne Grundstück. Default: 70 %.");
-  AddPercent("HouseReserveRate", "Jährliche Haus-Rücklage", _settings.HouseReserveRate,
-   "Jährlicher Rücklage-Satz auf den geschätzten Gebäudewert für Instandhaltung.");
-  AddMoney("CarReplacementValue", "Ersatzwert Auto", _settings.CarReplacementValue,
-   "Heutiger Betrag, den ein vergleichbares Ersatzfahrzeug kosten würde.");
-  AddInt("CarReplacementYears", "Auto-Ersatz nach Jahren", _settings.CarReplacementYears,
-   "Zeitraum, über den der Ersatzwert als Rücklage angespart wird.");
-  AddMoney("HealthReserveTarget", "Gesundheit / Zahnersatz Rücklage", _settings.HealthReserveTarget,
-   "Zielbetrag für einen separaten Gesundheit-/Zahnersatz-Topf.");
-  AddMoney("TravelReserveTarget", "Reisen / größere Wünsche Rücklage", _settings.TravelReserveTarget,
-   "Optionaler Zielbetrag. Default 0 €.");
-  AddMoney("OtherReserveTarget", "Sonstiges / Unvorhergesehenes Rücklage", _settings.OtherReserveTarget,
-   "Optionaler zusätzlicher Puffer. Default 0 €.");
+  AddMoney("HouseTotalValue", "Hauswert inkl. Grundstück", _settings.HouseTotalValue);
+  AddPercent("HouseBuildingShare", "Anteil Gebäude am Hauswert [Standardwert]", _settings.HouseBuildingShare);
+  AddPercent("HouseReserveRate", "Jährliche Haus-Rücklage [Standardwert]", _settings.HouseReserveRate);
+  AddMoney("CarReplacementValue", "Ersatzwert Auto", _settings.CarReplacementValue);
+  AddInt("CarReplacementYears", "Auto-Ersatz nach Jahren [Standardwert]", _settings.CarReplacementYears);
+  AddMoney("HealthReserveTarget", "Gesundheit / Zahnersatz Rücklage [Standardwert]", _settings.HealthReserveTarget);
+  AddMoney("TravelReserveTarget", "Reisen / größere Wünsche Rücklage", _settings.TravelReserveTarget);
+  AddMoney("OtherReserveTarget", "Sonstiges / Unvorhergesehenes Rücklage", _settings.OtherReserveTarget);
 
   AddSection("7. Bestehende Depots – optional");
-  AddMoney("WorldEtfCurrentValue", "Wert des bereits vorhandenen Welt-ETF", _settings.WorldEtfCurrentValue,
-   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
-  AddInt("WorldEtfStartYear", "Seit wann besteht dieser Welt-ETF?", _settings.WorldEtfStartYear,
-   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("WorldEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Welt-ETF [Standardwert]", _settings.WorldEtfHistoricalReturn,
-   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
-  AddPercent("WorldEtfReturn", "MSCI World / Welt-ETF Gesamtrendite [Standardwert]", _settings.WorldEtfReturn,
-   "Fester durchschnittlicher nominaler Jahreswert für Kursentwicklung plus Ausschüttungen.");
-  AddPercent("WorldEtfDistribution", "MSCI World / Welt-ETF Ausschüttung [Standardwert]", _settings.WorldEtfDistribution,
-   "Davon angenommener Anteil, der als Ausschüttung ausgezahlt wird.");
-  AddMoney("DividendEtfCurrentValue", "Wert des bereits vorhandenen Dividenden-ETF", _settings.DividendEtfCurrentValue,
-   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
-  AddInt("DividendEtfStartYear", "Seit wann besteht dieser Dividenden-ETF?", _settings.DividendEtfStartYear,
-   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("DividendEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Dividenden-ETF [Standardwert]", _settings.DividendEtfHistoricalReturn,
-   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
-  AddPercent("DividendEtfReturn", "Dividenden-ETF Gesamtrendite [Standardwert]", _settings.DividendEtfReturn,
-   "Fester durchschnittlicher nominaler Jahreswert.");
-  AddPercent("DividendEtfDistribution", "Dividenden-ETF Ausschüttung [Standardwert]", _settings.DividendEtfDistribution,
-   "Angenommene jährliche Ausschüttungsrendite.");
-  AddMoney("DividendStocksCurrentValue", "Wert der bereits vorhandenen Dividenden-Aktien", _settings.DividendStocksCurrentValue,
-   "Nur ausfüllen, wenn dieser Depotbaustein bereits vorhanden ist. Trage den heutigen tatsächlichen Depotwert ein. Dieser Wert dient nur dazu, vorhandene Kursgewinne und den steuerlichen Einstandswert zu schätzen. Die Aufteilung des Startvermögens erfolgt ausschließlich unter „8. Strategie & Aufteilung“.");
-  AddInt("DividendStocksStartYear", "Seit wann bestehen diese Dividenden-Aktien?", _settings.DividendStocksStartYear,
-   "Nur relevant, wenn bereits ein Depotwert eingetragen wurde. Trage das Jahr ein, seit dem dieser Depotbaustein besteht. Zusammen mit Depotwert und bisheriger Durchschnittsrendite wird daraus ein geschätzter steuerlicher Einstandswert ermittelt.");
-  AddPercent("DividendStocksHistoricalReturn", "Bisherige durchschnittliche Rendite der Dividenden-Aktien [Standardwert]", _settings.DividendStocksHistoricalReturn,
-   "Optional. Wenn du die bisherige durchschnittliche Jahresrendite nicht kennst, kann der Standardwert unverändert bleiben. Sie wird nur zur Schätzung des historischen steuerlichen Einstandswerts verwendet.");
-  AddPercent("DividendStocksReturn", "Dividenden-Aktien Gesamtrendite [Standardwert]", _settings.DividendStocksReturn,
-   "Fester durchschnittlicher nominaler Jahreswert.");
-  AddPercent("DividendStocksDistribution", "Dividenden-Aktien Ausschüttung [Standardwert]", _settings.DividendStocksDistribution,
-   "Angenommene jährliche Dividendenrendite.");
-  AddBool("DividendSurplusReinvest", "Nicht benötigte Dividenden wieder anlegen [Standardwert]", _settings.DividendSurplusReinvest,
-   "Default aus: Ausschüttungen stehen vollständig für euren Lebensstandard zur Verfügung.");
+  AddMoney("WorldEtfCurrentValue", "Wert des bereits vorhandenen Welt-ETF", _settings.WorldEtfCurrentValue);
+  AddInt("WorldEtfStartYear", "Seit wann besteht dieser Welt-ETF?", _settings.WorldEtfStartYear);
+  AddPercent("WorldEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Welt-ETF [Standardwert]", _settings.WorldEtfHistoricalReturn);
+  AddPercent("WorldEtfReturn", "MSCI World / Welt-ETF Gesamtrendite [Standardwert]", _settings.WorldEtfReturn);
+  AddPercent("WorldEtfDistribution", "MSCI World / Welt-ETF Ausschüttung", _settings.WorldEtfDistribution);
+  AddMoney("DividendEtfCurrentValue", "Wert des bereits vorhandenen Dividenden-ETF", _settings.DividendEtfCurrentValue);
+  AddInt("DividendEtfStartYear", "Seit wann besteht dieser Dividenden-ETF?", _settings.DividendEtfStartYear);
+  AddPercent("DividendEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Dividenden-ETF [Standardwert]", _settings.DividendEtfHistoricalReturn);
+  AddPercent("DividendEtfReturn", "Dividenden-ETF Gesamtrendite [Standardwert]", _settings.DividendEtfReturn);
+  AddPercent("DividendEtfDistribution", "Dividenden-ETF Ausschüttung", _settings.DividendEtfDistribution);
+  AddMoney("DividendStocksCurrentValue", "Wert der bereits vorhandenen Dividenden-Aktien", _settings.DividendStocksCurrentValue);
+  AddInt("DividendStocksStartYear", "Seit wann bestehen diese Dividenden-Aktien?", _settings.DividendStocksStartYear);
+  AddPercent("DividendStocksHistoricalReturn", "Bisherige durchschnittliche Rendite der Dividenden-Aktien [Standardwert]", _settings.DividendStocksHistoricalReturn);
+  AddPercent("DividendStocksReturn", "Dividenden-Aktien Gesamtrendite [Standardwert]", _settings.DividendStocksReturn);
+  AddPercent("DividendStocksDistribution", "Dividenden-Aktien Ausschüttung", _settings.DividendStocksDistribution);
+  AddBool("DividendSurplusReinvest", "Nicht benötigte Dividenden wieder anlegen", _settings.DividendSurplusReinvest);
 
   AddSection("8. Strategie & Aufteilung");
   AddChoice("Strategy", "Strategie [Standardwert]", GetDisplayedStrategy(),
-   ["Sicherheit", "Ausgewogen", "Wachstum", "Benutzerdefiniert"],
-   "Das Programm kann eine Strategie empfehlen. Du kannst sie jederzeit manuell ändern. Weicht die Aufteilung von den Standardwerten einer Strategie ab, wird Benutzerdefiniert angezeigt.");
-  AddPercent("AllocCash", "Anteil Tages-/Festgeld", _allocation.Cash,
-   "Anteil des Startvermögens im sicheren Geldbereich. Reserve und Rücklagen liegen darin.");
-  AddPercent("AllocWorld", "Anteil MSCI World / Welt-ETF", _allocation.WorldEtf,
-   "Anteil für breit gestreutes langfristiges Aktienwachstum.");
-  AddPercent("AllocDividendEtf", "Anteil Dividenden-ETF", _allocation.DividendEtf,
-   "Anteil für breit gestreute dividendenorientierte ETFs.");
-  AddPercent("AllocDividendStocks", "Anteil Dividenden-Aktien", _allocation.DividendStocks,
-   "Anteil für einzelne Dividenden-Aktien.");
+   ["Sicherheit", "Ausgewogen", "Wachstum", "Benutzerdefiniert"]);
+  AddPercent("AllocCash", "Anteil Tages-/Festgeld [Standardwert]", _allocation.Cash);
+  AddPercent("AllocWorld", "Anteil MSCI World / Welt-ETF [Standardwert]", _allocation.WorldEtf);
+  AddPercent("AllocDividendEtf", "Anteil Dividenden-ETF [Standardwert]", _allocation.DividendEtf);
+  AddPercent("AllocDividendStocks", "Anteil Dividenden-Aktien [Standardwert]", _allocation.DividendStocks);
 
   AddSection("9. Stressszenario");
   AddChoice("StressCrashPercent", "Crash-Stärke am Anfang [Standardwert]", FormatPercentChoice(_settings.StressCrashPercent),
-   ["-15 %", "-25 %", "-40 %"],
-   "Zusätzlicher Kursrückgang im ersten Planungsjahr auf die Aktien-/ETF-Anteile.");
-  AddBool("StressCrashAtStart", "Crash am Anfang simulieren [Standardwert]", _settings.StressCrashAtStart,
-   "Wenn aktiv, wird der gewählte Crash direkt im ersten Planungsjahr simuliert.");
-  AddBool("StressSecondCrashEnabled", "Späteren zweiten Crash simulieren [Standardwert]", _settings.StressSecondCrashEnabled,
-   "Optional kann später im Ruhestand noch ein zweiter Crash simuliert werden.");
-  AddInt("StressSecondCrashYear", "Jahr des zweiten Crashs", _settings.StressSecondCrashYear,
-   "Kalenderjahr, in dem der zweite Crash eintreten soll.");
-  AddChoice("StressSecondCrashPercent", "Stärke des zweiten Crashs", FormatPercentChoice(_settings.StressSecondCrashPercent),
-   ["-15 %", "-25 %", "-40 %"],
-   "Zusätzlicher Kursrückgang im gewählten Jahr.");
-  AddPercent("StressHealthInsuranceAssessmentAdditionalIncreaseRate", "Stress: zusätzl. Änderung GKV/Pflege Bemessungsgrenzen p.a. [Standardwert]", _settings.StressHealthInsuranceAssessmentAdditionalIncreaseRate,
-   "Zusätzliche relative jährliche Änderung der Mindest-Bemessungsgrundlage und Beitragsbemessungsgrenze nur im Stressszenario. Wird zur Basisannahme addiert. Default 0 %.");
-  AddPercent("StressHealthInsuranceAdditionalRateAnnualChange", "Stress: zusätzl. GKV-Zusatzbeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressHealthInsuranceAdditionalRateAnnualChange,
-   "Zusätzliche jährliche Änderung des GKV-Zusatzbeitragssatzes in Prozentpunkten nur im Stressszenario. Wird zur Basisannahme addiert. Default 0 %.");
-  AddPercent("StressCareInsuranceRateAnnualChange", "Stress: zusätzl. Pflegebeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressCareInsuranceRateAnnualChange,
-   "Zusätzliche jährliche Änderung des Pflege-Beitragssatzes in Prozentpunkten nur im Stressszenario. Wird zur Basisannahme addiert. Default 0 %.");
+   ["-15 %", "-25 %", "-40 %"]);
+  AddBool("StressCrashAtStart", "Crash am Anfang simulieren [Standardwert]", _settings.StressCrashAtStart);
+  AddBool("StressSecondCrashEnabled", "Späteren zweiten Crash simulieren [Standardwert]", _settings.StressSecondCrashEnabled);
+  AddInt("StressSecondCrashYear", "Jahr des zweiten Crashs [Standardwert]", _settings.StressSecondCrashYear);
+  AddChoice("StressSecondCrashPercent", "Stärke des zweiten Crashs [Standardwert]", FormatPercentChoice(_settings.StressSecondCrashPercent),
+   ["-15 %", "-25 %", "-40 %"]);
+  AddPercent("StressHealthInsuranceAssessmentAdditionalIncreaseRate", "Stress: zusätzl. Änderung GKV/Pflege Bemessungsgrenzen p.a. [Standardwert]", _settings.StressHealthInsuranceAssessmentAdditionalIncreaseRate);
+  AddPercent("StressHealthInsuranceAdditionalRateAnnualChange", "Stress: zusätzl. GKV-Zusatzbeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressHealthInsuranceAdditionalRateAnnualChange);
+  AddPercent("StressCareInsuranceRateAnnualChange", "Stress: zusätzl. Pflegebeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressCareInsuranceRateAnnualChange);
 
   AddSection("10. Haus optional");
-  AddBool("HouseIncluded", "Hausverkauf in Planung berücksichtigen", _settings.HouseIncluded,
-   "Standard aus. Wenn aktiv, kann ein späterer Netto-Verkaufserlös als Einnahme berücksichtigt werden.");
-  AddInt("HouseSaleYear", "Haus-Verkaufsjahr", _settings.HouseSaleYear,
-   "Nur relevant, wenn Hausverkauf berücksichtigt wird.");
-  AddMoney("HouseNetSaleProceeds", "Nettoerlös Hausverkauf", _settings.HouseNetSaleProceeds,
-   "Betrag, der nach Verkauf tatsächlich als verfügbares Kapital zufließt.");
+  AddBool("HouseIncluded", "Hausverkauf in Planung berücksichtigen", _settings.HouseIncluded);
+  AddInt("HouseSaleYear", "Haus-Verkaufsjahr", _settings.HouseSaleYear);
+  AddMoney("HouseNetSaleProceeds", "Nettoerlös Hausverkauf", _settings.HouseNetSaleProceeds);
 
   UpdateHouseholdPersonVisibility();
   UpdateCalculatedHealthDisplays();
@@ -256,13 +177,13 @@ public partial class MainWindow : Window
    InputSubTabs.SelectedIndex = 0;
  }
 
- private void AddInt(string key, string label, int value, string help) =>
-  AddTextInput(key, label, value.ToString(CultureInfo.InvariantCulture), help, InputType.Integer);
+ private void AddInt(string key, string label, int value) =>
+  AddTextInput(key, label, value.ToString(CultureInfo.InvariantCulture), InputType.Integer);
 
- private void AddMoney(string key, string label, decimal value, string help) =>
-  AddTextInput(key, label, FormatMoneyValue(value), help, InputType.Money);
+ private void AddMoney(string key, string label, decimal value) =>
+  AddTextInput(key, label, FormatMoneyValue(value), InputType.Money);
 
- private void AddReadOnlyMoney(string key, string label, decimal value, string help)
+ private void AddReadOnlyMoney(string key, string label, decimal value)
  {
   var textBox = new TextBox
   {
@@ -276,16 +197,16 @@ public partial class MainWindow : Window
   if (_currentInputPanel == null)
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  _currentInputPanel.Children.Add(CreateRow(label, help, textBox));
+  _currentInputPanel.Children.Add(CreateRow(label, textBox));
  }
 
- private void AddDecimal(string key, string label, decimal value, string help) =>
-  AddTextInput(key, label, value.ToString("0.##", CultureInfo.InvariantCulture), help, InputType.Decimal);
+ private void AddDecimal(string key, string label, decimal value) =>
+  AddTextInput(key, label, value.ToString("0.##", CultureInfo.InvariantCulture), InputType.Decimal);
 
- private void AddPercent(string key, string label, decimal value, string help) =>
-  AddTextInput(key, label, (value * 100m).ToString("0.##", CultureInfo.InvariantCulture), help, InputType.Percent);
+ private void AddPercent(string key, string label, decimal value) =>
+  AddTextInput(key, label, (value * 100m).ToString("0.##", CultureInfo.InvariantCulture), InputType.Percent);
 
- private void AddTextInput(string key, string label, string value, string help, InputType type)
+ private void AddTextInput(string key, string label, string value, InputType type)
  {
   var textBox = new TextBox { Text = value, Tag = type };
 
@@ -301,10 +222,10 @@ public partial class MainWindow : Window
   if (_currentInputPanel == null)
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  _currentInputPanel.Children.Add(CreateRow(label, help, textBox));
+  _currentInputPanel.Children.Add(CreateRow(label, textBox));
  }
 
- private void AddBool(string key, string label, bool value, string help)
+ private void AddBool(string key, string label, bool value)
  {
   var combo = new ComboBox();
   combo.Items.Add("Ja");
@@ -316,10 +237,10 @@ public partial class MainWindow : Window
   if (_currentInputPanel == null)
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  _currentInputPanel.Children.Add(CreateRow(label, help, combo));
+  _currentInputPanel.Children.Add(CreateRow(label, combo));
  }
 
- private void AddChoice(string key, string label, string value, IEnumerable<string> choices, string help)
+ private void AddChoice(string key, string label, string value, IEnumerable<string> choices)
  {
   var combo = new ComboBox();
   foreach (var item in choices) combo.Items.Add(item);
@@ -337,13 +258,22 @@ public partial class MainWindow : Window
   if (_currentInputPanel == null)
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  _currentInputPanel.Children.Add(CreateRow(label, help, combo));
+  _currentInputPanel.Children.Add(CreateRow(label, combo));
  }
 
- private FrameworkElement CreateRow(string label, string helpText, FrameworkElement input)
+ private FrameworkElement CreateRow(string label, FrameworkElement input)
  {
+  const string standardValueSuffix = " [Standardwert]";
+  bool isStandardValue = label.EndsWith(
+   standardValueSuffix,
+   StringComparison.Ordinal);
+
+  string displayLabel = isStandardValue
+   ? label[..^standardValueSuffix.Length]
+   : label;
+
   _fieldNumber++;
-  string numberedLabel = $"{_fieldNumber:00}. {label}";
+  string numberedLabel = $"{_fieldNumber:00}. {displayLabel}";
 
   var grid = new Grid
   {
@@ -359,7 +289,7 @@ public partial class MainWindow : Window
   var labelText = new TextBlock
   {
    Text = numberedLabel,
-   Tag = label,
+   Tag = displayLabel,
    TextWrapping = TextWrapping.Wrap,
    VerticalAlignment = VerticalAlignment.Center,
    Margin = new Thickness(20, 0, 0, 0)
@@ -386,13 +316,10 @@ public partial class MainWindow : Window
    }
   };
 
-  helpButton.MouseEnter += (_, _) => _help.ShowHover(helpButton, helpText);
+  int fieldNumber = _fieldNumber;
+  helpButton.MouseEnter += (_, _) =>
+   _help.ShowHover(helpButton, HintService.Get(fieldNumber));
   helpButton.MouseLeave += (_, _) => _help.ClearHover(helpButton);
-  helpButton.MouseLeftButtonDown += (_, e) =>
-  {
-   e.Handled = true;
-   _help.TogglePinned(helpButton, helpText);
-  };
 
   Grid.SetColumn(helpButton, 1);
   grid.Children.Add(helpButton);
@@ -400,6 +327,21 @@ public partial class MainWindow : Window
   input.VerticalAlignment = VerticalAlignment.Center;
   Grid.SetColumn(input, 2);
   grid.Children.Add(input);
+
+  if (isStandardValue)
+  {
+   var standardValueText = new TextBlock
+   {
+    Text = "[Standardwert]",
+    Foreground = (Brush)FindResource("AccentBrush"),
+    FontWeight = FontWeights.SemiBold,
+    VerticalAlignment = VerticalAlignment.Center,
+    Margin = new Thickness(10, 0, 0, 0)
+   };
+
+   Grid.SetColumn(standardValueText, 3);
+   grid.Children.Add(standardValueText);
+  }
 
   return grid;
  }
@@ -436,8 +378,8 @@ public partial class MainWindow : Window
     row.Visibility = showPerson2 ? Visibility.Visible : Visibility.Collapsed;
   }
 
-  RenumberVisibleFields();
  }
+
 
  private void RenumberVisibleFields()
  {
