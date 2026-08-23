@@ -5,6 +5,7 @@ public sealed class PlannerSettings
  public int HouseholdPersonCount { get; set; } = 2;
  public int PlanningYear { get; set; } = 2032;
  public int Person1Age { get; set; } = 55;
+ public int Person1WorkEndYear { get; set; }
  public int Person2Age { get; set; } = 50;
  public int Person2WorkEndYear { get; set; } = 2036;
  public decimal Person2NetIncomeMonthly { get; set; } = 2000m;
@@ -31,6 +32,8 @@ public sealed class PlannerSettings
  public decimal StressCareInsuranceRateAnnualChange { get; set; }
  public decimal Person1PensionGrossMonthly { get; set; } = 1500m;
  public decimal Person2PensionGrossMonthly { get; set; } = 1000m;
+ public decimal Person1ProjectedPensionGrossMonthlyAt67 { get; set; }
+ public decimal Person2ProjectedPensionGrossMonthlyAt67 { get; set; }
 
  public decimal CapitalGainsAllowance { get; set; } = 2000m;
  public bool JointTaxation { get; set; } = true;
@@ -117,6 +120,8 @@ public sealed class YearResult
  public decimal ReserveTarget { get; set; }
  public decimal ReserveActual { get; set; }
  public decimal PensionGross { get; set; }
+ public decimal PensionPerson1Gross { get; set; }
+ public decimal PensionPerson2Gross { get; set; }
  public decimal PensionNet { get; set; }
  public decimal PensionHealthAndCareDeductions { get; set; }
  public decimal PensionIncomeTax { get; set; }

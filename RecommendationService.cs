@@ -39,7 +39,12 @@ public static class RecommendationService
     parts.Add("Keine Default-Strategie erfüllt Basis und Stress vollständig. Die gewählte Strategie „Sicherheit“ entspricht dem konservativen Fallback.");
   }
 
-  decimal availableCash = settings.StartCapital * allocation.Cash;
+  decimal existingDepotTotal =
+   settings.WorldEtfCurrentValue +
+   settings.DividendEtfCurrentValue +
+   settings.DividendStocksCurrentValue;
+  decimal strategyCapital = Math.Max(0m, settings.StartCapital - existingDepotTotal);
+  decimal availableCash = strategyCapital * allocation.Cash;
   decimal requiredCash = basis.InitialRequiredCash;
 
   if (settings.StartCapital > 0m && availableCash < requiredCash)

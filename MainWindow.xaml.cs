@@ -46,13 +46,15 @@ public partial class MainWindow : Window
 
   AddSection("1. Startvermögen");
   AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital);
+  AddInt("PlanningYear", "Simulationsstartjahr", _settings.PlanningYear);
 
         AddSection("2. Planung");
   AddChoice("HouseholdPersonCount", "Haushalt",
    _settings.HouseholdPersonCount == 1 ? "1 Person" : "2 Personen",
    ["1 Person", "2 Personen"]);
   AddInt("Person1CurrentAge", "Aktuelles Alter Person 1", _settings.Person1Age);
-  AddInt("PlanningYear", "Vorzeitiges Arbeitsende Person 1", _settings.PlanningYear);
+  AddInt("Person1WorkEndYear", "Vorzeitiges Arbeitsende Person 1",
+   _settings.Person1WorkEndYear > 0 ? _settings.Person1WorkEndYear : _settings.PlanningYear);
   AddInt("Person2CurrentAge", "Aktuelles Alter Person 2", _settings.Person2Age);
   AddInt("Person2WorkEndYear", "Vorzeitiges Arbeitsende Person 2",
    _settings.Person2WorkEndYear > 0 ? _settings.Person2WorkEndYear : _settings.PlanningYear);
@@ -87,8 +89,10 @@ public partial class MainWindow : Window
   AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m);
   AddSection("5. Gesetzliche Rente");
   AddMoney("Person1PensionGrossMonthly", "Rente Person 1 – heute bereits erworben (brutto/Monat)", _settings.Person1PensionGrossMonthly);
-        AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – erwartet zum Arbeitsende (brutto/Monat)", _settings.Person2PensionGrossMonthly);
-        AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1);
+  AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – heute bereits erworben (brutto/Monat)", _settings.Person2PensionGrossMonthly);
+  AddMoney("Person1ProjectedPensionGrossMonthlyAt67", "Rente Person 1 – Hochrechnung bei Beiträgen bis 67 (brutto/Monat)", _settings.Person1ProjectedPensionGrossMonthlyAt67);
+  AddMoney("Person2ProjectedPensionGrossMonthlyAt67", "Rente Person 2 – Hochrechnung bei Beiträgen bis 67 (brutto/Monat)", _settings.Person2ProjectedPensionGrossMonthlyAt67);
+  AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1);
   AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2);
 
   AddSection("6. Sichere Reserve & Rücklagen");
@@ -367,6 +371,7 @@ public partial class MainWindow : Window
    "Person2EndAge",
    "CalculatedHealthPerson2Monthly",
    "Person2PensionGrossMonthly",
+   "Person2ProjectedPensionGrossMonthlyAt67",
    "KvdrPerson2",
    "JointTaxation"
   ];
@@ -574,6 +579,7 @@ public partial class MainWindow : Window
    previewSettings.StartCapital = ReadDecimal("StartCapital", 0m, 1000000000m);
    previewSettings.Person1Age = ReadInt("Person1CurrentAge");
    previewSettings.PlanningYear = ReadInt("PlanningYear");
+   previewSettings.Person1WorkEndYear = ReadInt("Person1WorkEndYear");
    previewSettings.Person1RetirementAge = ReadInt("Person1RetirementAge");
 
    if (previewSettings.HouseholdPersonCount == 2)
@@ -643,7 +649,13 @@ public partial class MainWindow : Window
   ResultsButton.IsEnabled = true;
 
   string recommended = StrategyService.Recommend(_settings);
-  string reserveWarning = _baseResult.InitialRequiredCash > _settings.StartCapital * _allocation.Cash
+  decimal existingDepotTotal =
+   _settings.WorldEtfCurrentValue +
+   _settings.DividendEtfCurrentValue +
+   _settings.DividendStocksCurrentValue;
+  decimal strategyCapital = Math.Max(0m, _settings.StartCapital - existingDepotTotal);
+  decimal initialCash = strategyCapital * _allocation.Cash;
+  string reserveWarning = _baseResult.InitialRequiredCash > initialCash
    ? " Tages-/Festgeld ist kleiner als Reserve + Rücklagen."
    : "";
 
@@ -822,6 +834,7 @@ public partial class MainWindow : Window
    _settings.HouseholdPersonCount = ReadHouseholdPersonCount();
    _settings.Person1Age = ReadInt("Person1CurrentAge");
    _settings.PlanningYear = ReadInt("PlanningYear");
+   _settings.Person1WorkEndYear = ReadInt("Person1WorkEndYear");
    _settings.Person1RetirementAge = ReadInt("Person1RetirementAge");
    _settings.Person1EndAge = ReadInt("Person1EndAge");
 
@@ -849,11 +862,13 @@ public partial class MainWindow : Window
    _settings.CareInsuranceRateAnnualChange = ReadPercent("CareInsuranceRateAnnualChange", -0.20m, 0.20m);
 
    _settings.Person1PensionGrossMonthly = ReadDecimal("Person1PensionGrossMonthly", 0m, 100000m);
+   _settings.Person1ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person1ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
    _settings.KvdrPerson1 = ReadBool("KvdrPerson1");
 
    if (_settings.HouseholdPersonCount == 2)
    {
     _settings.Person2PensionGrossMonthly = ReadDecimal("Person2PensionGrossMonthly", 0m, 100000m);
+    _settings.Person2ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person2ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
     _settings.KvdrPerson2 = ReadBool("KvdrPerson2");
    }
 
@@ -889,6 +904,15 @@ public partial class MainWindow : Window
    _settings.DividendStocksReturn = ReadPercent("DividendStocksReturn", -1m, 1m);
    _settings.DividendStocksDistribution = ReadPercent("DividendStocksDistribution", 0m, 0.50m);
 
+   decimal existingDepotTotal =
+    _settings.WorldEtfCurrentValue +
+    _settings.DividendEtfCurrentValue +
+    _settings.DividendStocksCurrentValue;
+
+   if (existingDepotTotal > _settings.StartCapital)
+    throw new InvalidOperationException(
+     "Die Summe der bestehenden Depotwerte darf das verfügbare Startvermögen nicht überschreiten.");
+
    _settings.DividendSurplusReinvest = ReadBool("DividendSurplusReinvest");
    _settings.Strategy = ReadChoice("Strategy");
 
@@ -918,10 +942,14 @@ public partial class MainWindow : Window
    _settings.HouseSaleYear = ReadInt("HouseSaleYear");
    _settings.HouseNetSaleProceeds = ReadDecimal("HouseNetSaleProceeds", 0m, 100000000m);
 
-   int planningAgePerson1 =
-    _settings.Person1Age + (_settings.PlanningYear - DateTime.Today.Year);
+   if (_settings.PlanningYear < _settings.Person1WorkEndYear)
+    throw new InvalidOperationException(
+     "Das Simulationsstartjahr darf nicht vor dem vorzeitigen Arbeitsende von Person 1 liegen.");
 
-   if (_settings.Person1RetirementAge < planningAgePerson1)
+   int workEndAgePerson1 =
+    _settings.Person1Age + (_settings.Person1WorkEndYear - DateTime.Today.Year);
+
+   if (_settings.Person1RetirementAge < workEndAgePerson1)
     throw new InvalidOperationException("Der Beginn der gesetzlichen Rente darf nicht vor dem jeweiligen vorzeitigen Arbeitsende liegen.");
 
    if (_settings.HouseholdPersonCount == 2)

@@ -9,10 +9,10 @@
     <AssemblyName>RockefellerFiction</AssemblyName>
     <RootNamespace>RockefellerFiction</RootNamespace>
 
-    <Version>0.1.72</Version>
-    <AssemblyVersion>0.1.72</AssemblyVersion>
-    <FileVersion>0.1.72</FileVersion>
-    <InformationalVersion>0.1.72</InformationalVersion>
+    <Version>0.1.78</Version>
+    <AssemblyVersion>0.1.78</AssemblyVersion>
+    <FileVersion>0.1.78</FileVersion>
+    <InformationalVersion>0.1.78</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
   <ItemGroup>

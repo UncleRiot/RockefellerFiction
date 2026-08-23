@@ -79,7 +79,11 @@ public static class CalculationLogService
   AppendTitle(text, "EINGABEN");
 
   AppendValue(text, "Haushalt", $"{Math.Max(1, s.HouseholdPersonCount)} Person(en)");
-  AppendValue(text, "Planungsjahr / Arbeitsende Person 1", s.PlanningYear);
+  AppendValue(text, "Simulationsstartjahr", s.PlanningYear);
+  AppendValue(
+   text,
+   "Vorzeitiges Arbeitsende Person 1",
+   s.Person1WorkEndYear > 0 ? s.Person1WorkEndYear : s.PlanningYear);
   AppendValue(text, "Aktuelles Alter Person 1", s.Person1Age);
   AppendValue(text, "Rentenbeginn Person 1", s.Person1RetirementAge);
   AppendValue(text, "Lebenserwartung Person 1", s.Person1EndAge);
@@ -94,18 +98,20 @@ public static class CalculationLogService
    AppendValue(text, "Lebenserwartung Person 2", s.Person2EndAge);
   }
 
-  AppendMoney(text, "Startvermögen", s.StartCapital);
+  AppendMoney(text, "Startvermögen zum Simulationsstart", s.StartCapital);
   AppendMoney(text, "Lebenshaltung pro Monat", s.MonthlyLivingCosts);
   AppendPercent(text, "Inflation p.a.", s.InflationRate);
   AppendValue(text, "Einkommensteuertarif Basisjahr", 2026);
   AppendValue(text, "Einkommensteuertarif Fortschreibung", "mit Inflation p.a.");
   AppendPercent(text, "Rentensteigerung p.a.", s.PensionIncreaseRate);
 
-  AppendMoney(text, "Rente Person 1 brutto pro Monat", s.Person1PensionGrossMonthly);
+  AppendMoney(text, "Rente Person 1 heute bereits erworben brutto pro Monat", s.Person1PensionGrossMonthly);
+  AppendMoney(text, "Rente Person 1 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person1ProjectedPensionGrossMonthlyAt67);
   AppendValue(text, "KVdR Person 1", s.KvdrPerson1 ? "Ja" : "Nein");
   if (s.HouseholdPersonCount == 2)
   {
-   AppendMoney(text, "Rente Person 2 brutto pro Monat", s.Person2PensionGrossMonthly);
+   AppendMoney(text, "Rente Person 2 heute bereits erworben brutto pro Monat", s.Person2PensionGrossMonthly);
+   AppendMoney(text, "Rente Person 2 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person2ProjectedPensionGrossMonthlyAt67);
    AppendValue(text, "KVdR Person 2", s.KvdrPerson2 ? "Ja" : "Nein");
   }
 
@@ -235,6 +241,9 @@ public static class CalculationLogService
 
   text.AppendLine("[Rente / Einkommen]");
   AppendMoney(text, "Rente brutto p.a.", y.PensionGross);
+  AppendMoney(text, "Rente Person 1 brutto p.a.", y.PensionPerson1Gross);
+  if (settings.HouseholdPersonCount == 2)
+   AppendMoney(text, "Rente Person 2 brutto p.a.", y.PensionPerson2Gross);
   AppendMoney(text, "Rentenabzüge GKV/Zusatz/Pflege p.a.", y.PensionHealthAndCareDeductions);
   AppendMoney(text, "Rentensteuer inkl. Zuschlagsteuern p.a.", y.PensionIncomeTax);
   AppendMoney(text, "Rente netto p.a.", y.PensionNet);

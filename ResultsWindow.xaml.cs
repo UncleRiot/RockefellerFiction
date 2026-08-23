@@ -105,6 +105,7 @@ public partial class ResultsWindow : Window
    person2Visibility,
    "Alter 2",
    "freiw. GKV/Pflege P2 mtl.",
+   "Rente P2 brutto p.a.",
    "Nettoeinkommen P2 verwendet p.a.");
   SetColumnVisibility(
    StressYearGrid,
@@ -136,11 +137,11 @@ public partial class ResultsWindow : Window
  {
   SetGroupWidth(BasePlanGroupColumn, YearGrid, 0, 3);
   SetGroupWidth(BaseExpenseGroupColumn, YearGrid, 3, 6);
-  SetGroupWidth(BasePensionGroupColumn, YearGrid, 9, 3);
-  SetGroupWidth(BaseIncomeGroupColumn, YearGrid, 12, 4);
-  SetGroupWidth(BaseTaxGroupColumn, YearGrid, 16, 1);
-  SetGroupWidth(BaseWealthGroupColumn, YearGrid, 17, 1);
-  SetGroupWidth(BaseStatusGroupColumn, YearGrid, 18, 1);
+  SetGroupWidth(BasePensionGroupColumn, YearGrid, 9, 5);
+  SetGroupWidth(BaseIncomeGroupColumn, YearGrid, 14, 4);
+  SetGroupWidth(BaseTaxGroupColumn, YearGrid, 18, 1);
+  SetGroupWidth(BaseWealthGroupColumn, YearGrid, 19, 1);
+  SetGroupWidth(BaseStatusGroupColumn, YearGrid, 20, 1);
   SetGridWidth(YearGrid, BaseGroupHeaderGrid);
 
   SetGroupWidth(StressPlanGroupColumn, StressYearGrid, 0, 3);

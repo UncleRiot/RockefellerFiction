@@ -50,30 +50,56 @@ public static class PensionService
   decimal gross1 = 0m;
   decimal gross2 = 0m;
 
-  int person1PensionValueBaseYear = DateTime.Today.Year;
-  int person2PensionValueBaseYear =
+  int person1PensionStartYear =
+   year - Math.Max(0, age1 - s.Person1RetirementAge);
+
+  int person2PensionStartYear =
+   year - Math.Max(0, age2 - s.Person2RetirementAge);
+
+  int person1WorkEndYear =
+   s.Person1WorkEndYear > 0
+    ? s.Person1WorkEndYear
+    : s.PlanningYear;
+
+  decimal person1MonthlyAtRetirement =
+   CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
+    s.Person1PensionGrossMonthly,
+    s.Person1ProjectedPensionGrossMonthlyAt67,
+    s.Person1Age,
+    person1WorkEndYear,
+    s.Person1RetirementAge);
+
+  int person2WorkEndYear =
    s.Person2WorkEndYear > 0
     ? s.Person2WorkEndYear
     : s.PlanningYear;
 
+  decimal person2MonthlyAtRetirement =
+   CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
+    s.Person2PensionGrossMonthly,
+    s.Person2ProjectedPensionGrossMonthlyAt67,
+    s.Person2Age,
+    person2WorkEndYear,
+    s.Person2RetirementAge);
+
   if (age1 >= s.Person1RetirementAge && age1 <= s.Person1EndAge)
   {
-   int years = Math.Max(0, year - person1PensionValueBaseYear);
-   gross1 = s.Person1PensionGrossMonthly
+   int yearsFromCurrentYear = Math.Max(0, year - DateTime.Today.Year);
+   gross1 = person1MonthlyAtRetirement
     * CalculateEarlyRetirementFactor(s.Person1RetirementAge)
     * 12m
-    * Pow(1m + s.PensionIncreaseRate, years);
+    * Pow(1m + s.PensionIncreaseRate, yearsFromCurrentYear);
   }
 
   if (s.HouseholdPersonCount == 2 &&
       age2 >= s.Person2RetirementAge &&
       age2 <= s.Person2EndAge)
   {
-   int years = Math.Max(0, year - person2PensionValueBaseYear);
-   gross2 = s.Person2PensionGrossMonthly
+   int yearsFromCurrentYear = Math.Max(0, year - DateTime.Today.Year);
+   gross2 = person2MonthlyAtRetirement
     * CalculateEarlyRetirementFactor(s.Person2RetirementAge)
     * 12m
-    * Pow(1m + s.PensionIncreaseRate, years);
+    * Pow(1m + s.PensionIncreaseRate, yearsFromCurrentYear);
   }
 
   HealthInsuranceProjectionParameters healthInsuranceParameters =
@@ -102,8 +128,10 @@ public static class PensionService
    gross2,
    deductions1,
    deductions2,
-   person1PensionValueBaseYear,
-   person2PensionValueBaseYear,
+   person1PensionStartYear,
+   person2PensionStartYear,
+   person1MonthlyAtRetirement,
+   person2MonthlyAtRetirement,
    out decimal taxableIncome1,
    out decimal taxableIncome2);
 
@@ -158,29 +186,31 @@ public static class PensionService
   decimal gross2,
   decimal deductions1,
   decimal deductions2,
-  int person1PensionValueBaseYear,
-  int person2PensionValueBaseYear,
+  int person1PensionStartYear,
+  int person2PensionStartYear,
+  decimal person1MonthlyAtRetirement,
+  decimal person2MonthlyAtRetirement,
   out decimal taxableIncome1,
   out decimal taxableIncome2)
  {
   taxableIncome1 = CalculateTaxablePensionIncome(
    gross1,
    deductions1,
-   s.Person1PensionGrossMonthly,
+   person1MonthlyAtRetirement,
    s.Person1RetirementAge,
    year,
    age1,
-   person1PensionValueBaseYear,
+   person1PensionStartYear,
    s.PensionIncreaseRate);
 
   taxableIncome2 = CalculateTaxablePensionIncome(
    gross2,
    deductions2,
-   s.Person2PensionGrossMonthly,
+   person2MonthlyAtRetirement,
    s.Person2RetirementAge,
    year,
    age2,
-   person2PensionValueBaseYear,
+   person2PensionStartYear,
    s.PensionIncreaseRate);
 
   bool person1Included = age1 <= s.Person1EndAge;
@@ -200,21 +230,21 @@ public static class PensionService
  private static decimal CalculateTaxablePensionIncome(
   decimal currentAnnualGross,
   decimal deductibleHealthAndCare,
-  decimal pensionGrossMonthlyAtBaseYear,
+  decimal pensionGrossMonthlyAtRetirement,
   int retirementAge,
   int currentYear,
   int currentAge,
-  int pensionValueBaseYear,
+  int pensionStartYear,
   decimal pensionIncreaseRate)
  {
   if (currentAnnualGross <= 0m || currentAge < retirementAge)
    return 0m;
 
-  int pensionStartYear = currentYear - Math.Max(0, currentAge - retirementAge);
-  int yearsToPensionStart = Math.Max(0, pensionStartYear - pensionValueBaseYear);
+  int yearsToPensionStart =
+   Math.Max(0, pensionStartYear - DateTime.Today.Year);
 
   decimal initialAnnualGross =
-   pensionGrossMonthlyAtBaseYear *
+   pensionGrossMonthlyAtRetirement *
    CalculateEarlyRetirementFactor(retirementAge) *
    12m *
    Pow(1m + pensionIncreaseRate, yearsToPensionStart);
@@ -404,6 +434,46 @@ public static class PensionService
   }
 
   return Math.Max(0m, Math.Floor(tax));
+ }
+
+ private static decimal CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
+  decimal currentGrossMonthly,
+  decimal projectedGrossMonthlyAt67,
+  int currentAge,
+  int workEndYear,
+  int retirementAge)
+ {
+  decimal currentPension = Math.Max(0m, currentGrossMonthly);
+  decimal projectedPensionAt67 =
+   Math.Max(currentPension, projectedGrossMonthlyAt67);
+
+  int yearsToRegularRetirement =
+   Math.Max(0, RegularRetirementAge - currentAge);
+
+  if (yearsToRegularRetirement == 0)
+   return currentPension;
+
+  decimal additionalPensionPerContributionYear =
+   (projectedPensionAt67 - currentPension) /
+   yearsToRegularRetirement;
+
+  int workEndAge =
+   currentAge +
+   Math.Max(0, workEndYear - DateTime.Today.Year);
+
+  int contributionEndAge =
+   Math.Min(
+    RegularRetirementAge,
+    Math.Min(retirementAge, workEndAge));
+
+  int additionalContributionYears =
+   Math.Clamp(
+    contributionEndAge - currentAge,
+    0,
+    yearsToRegularRetirement);
+
+  return currentPension +
+         (additionalPensionPerContributionYear * additionalContributionYears);
  }
 
  private static decimal CalculateEarlyRetirementFactor(int retirementAge)

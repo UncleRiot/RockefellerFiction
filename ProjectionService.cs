@@ -6,26 +6,45 @@ public static class ProjectionService
  {
   var result = new ProjectionResult();
 
-  decimal cash = s.StartCapital * allocation.Cash;
-  decimal world = s.StartCapital * allocation.WorldEtf;
-  decimal divEtf = s.StartCapital * allocation.DividendEtf;
-  decimal divStocks = s.StartCapital * allocation.DividendStocks;
+  decimal existingDepotTotal =
+   s.WorldEtfCurrentValue +
+   s.DividendEtfCurrentValue +
+   s.DividendStocksCurrentValue;
+  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
 
-  decimal worldCostBasis = EstimateInitialCostBasis(
-   world,
-   s.WorldEtfCurrentValue,
-   s.WorldEtfStartYear,
-   s.WorldEtfHistoricalReturn);
-  decimal divEtfCostBasis = EstimateInitialCostBasis(
-   divEtf,
-   s.DividendEtfCurrentValue,
-   s.DividendEtfStartYear,
-   s.DividendEtfHistoricalReturn);
-  decimal divStocksCostBasis = EstimateInitialCostBasis(
-   divStocks,
-   s.DividendStocksCurrentValue,
-   s.DividendStocksStartYear,
-   s.DividendStocksHistoricalReturn);
+  decimal cash = strategyCapital * allocation.Cash;
+  decimal worldNewInvestment = strategyCapital * allocation.WorldEtf;
+  decimal divEtfNewInvestment = strategyCapital * allocation.DividendEtf;
+  decimal divStocksNewInvestment = strategyCapital * allocation.DividendStocks;
+
+  decimal world = s.WorldEtfCurrentValue + worldNewInvestment;
+  decimal divEtf = s.DividendEtfCurrentValue + divEtfNewInvestment;
+  decimal divStocks = s.DividendStocksCurrentValue + divStocksNewInvestment;
+
+  decimal worldCostBasis =
+   EstimateInitialCostBasis(
+    s.WorldEtfCurrentValue,
+    s.WorldEtfCurrentValue,
+    s.WorldEtfStartYear,
+    s.WorldEtfHistoricalReturn,
+    s.PlanningYear) +
+   worldNewInvestment;
+  decimal divEtfCostBasis =
+   EstimateInitialCostBasis(
+    s.DividendEtfCurrentValue,
+    s.DividendEtfCurrentValue,
+    s.DividendEtfStartYear,
+    s.DividendEtfHistoricalReturn,
+    s.PlanningYear) +
+   divEtfNewInvestment;
+  decimal divStocksCostBasis =
+   EstimateInitialCostBasis(
+    s.DividendStocksCurrentValue,
+    s.DividendStocksCurrentValue,
+    s.DividendStocksStartYear,
+    s.DividendStocksHistoricalReturn,
+    s.PlanningYear) +
+   divStocksNewInvestment;
 
   decimal equityFundAdvanceLumpSumCarry = 0m;
   decimal pendingWorldAdvanceLumpSum = 0m;
@@ -64,11 +83,12 @@ public static class ProjectionService
    pendingWorldAdvanceLumpSum = 0m;
    pendingDividendEtfAdvanceLumpSum = 0m;
 
-   decimal inflationFactor = Pow(1m + s.InflationRate, offset);
+   int yearsFromCurrentYear = Math.Max(0, year - DateTime.Today.Year);
+   int previousYearOffsetFromCurrentYear = Math.Max(0, year - 1 - DateTime.Today.Year);
+   decimal inflationFactor = Pow(1m + s.InflationRate, yearsFromCurrentYear);
    decimal living = s.MonthlyLivingCosts * 12m * inflationFactor;
-   decimal previousLiving = offset == 0
-    ? living
-    : s.MonthlyLivingCosts * 12m * Pow(1m + s.InflationRate, offset - 1);
+   decimal previousLiving = s.MonthlyLivingCosts * 12m *
+    Pow(1m + s.InflationRate, previousYearOffsetFromCurrentYear);
    decimal livingCostIncrease = Math.Max(0m, living - previousLiving);
    decimal healthCare = 0m;
    decimal healthCarePerson1 = 0m;
@@ -94,16 +114,16 @@ public static class ProjectionService
 
    if (stress && s.StressCrashAtStart && offset == 0)
    {
-    wr += s.StressCrashPercent;
-    er += s.StressCrashPercent;
-    sr += s.StressCrashPercent;
+    wr = s.StressCrashPercent;
+    er = s.StressCrashPercent;
+    sr = s.StressCrashPercent;
    }
 
    if (stress && s.StressSecondCrashEnabled && year == s.StressSecondCrashYear)
    {
-    wr += s.StressSecondCrashPercent;
-    er += s.StressSecondCrashPercent;
-    sr += s.StressSecondCrashPercent;
+    wr = s.StressSecondCrashPercent;
+    er = s.StressSecondCrashPercent;
+    sr = s.StressSecondCrashPercent;
    }
 
    decimal worldGrossReturn = world * wr;
@@ -569,6 +589,8 @@ public static class ProjectionService
     ReserveTarget = reserveTarget,
     ReserveActual = cash,
     PensionGross = pension.Gross,
+    PensionPerson1Gross = pension.Person1Gross,
+    PensionPerson2Gross = pension.Person2Gross,
     PensionNet = pension.Net,
     PensionHealthAndCareDeductions = pension.HealthAndCareDeductions,
     PensionIncomeTax = pension.IncomeTax,
@@ -638,10 +660,16 @@ public static class ProjectionService
   PlannerSettings s,
   StrategyAllocation allocation)
  {
-  decimal cash = s.StartCapital * allocation.Cash;
-  decimal world = s.StartCapital * allocation.WorldEtf;
-  decimal divEtf = s.StartCapital * allocation.DividendEtf;
-  decimal divStocks = s.StartCapital * allocation.DividendStocks;
+  decimal existingDepotTotal =
+   s.WorldEtfCurrentValue +
+   s.DividendEtfCurrentValue +
+   s.DividendStocksCurrentValue;
+  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
+
+  decimal cash = strategyCapital * allocation.Cash;
+  decimal world = s.WorldEtfCurrentValue + strategyCapital * allocation.WorldEtf;
+  decimal divEtf = s.DividendEtfCurrentValue + strategyCapital * allocation.DividendEtf;
+  decimal divStocks = s.DividendStocksCurrentValue + strategyCapital * allocation.DividendStocks;
 
   decimal interest = Math.Max(0m, cash * s.CashInterestRate);
   decimal worldDistribution = Math.Max(0m, world * s.WorldEtfDistribution);
@@ -696,8 +724,14 @@ public static class ProjectionService
 
  private static decimal EstimateMinimumStartCapital(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
-  decimal low = 0m;
-  decimal high = Math.Max(100000m, s.StartCapital > 0m ? s.StartCapital : 100000m);
+  decimal existingDepotTotal =
+   s.WorldEtfCurrentValue +
+   s.DividendEtfCurrentValue +
+   s.DividendStocksCurrentValue;
+  decimal low = existingDepotTotal;
+  decimal high = Math.Max(
+   existingDepotTotal,
+   Math.Max(100000m, s.StartCapital > 0m ? s.StartCapital : 100000m));
 
   for (int i = 0; i < 30; i++)
   {
@@ -731,26 +765,45 @@ public static class ProjectionService
 
  private static decimal CalculateCoreWithoutEstimate(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
-  decimal cash = s.StartCapital * allocation.Cash;
-  decimal world = s.StartCapital * allocation.WorldEtf;
-  decimal divEtf = s.StartCapital * allocation.DividendEtf;
-  decimal divStocks = s.StartCapital * allocation.DividendStocks;
+  decimal existingDepotTotal =
+   s.WorldEtfCurrentValue +
+   s.DividendEtfCurrentValue +
+   s.DividendStocksCurrentValue;
+  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
 
-  decimal worldCostBasis = EstimateInitialCostBasis(
-   world,
-   s.WorldEtfCurrentValue,
-   s.WorldEtfStartYear,
-   s.WorldEtfHistoricalReturn);
-  decimal divEtfCostBasis = EstimateInitialCostBasis(
-   divEtf,
-   s.DividendEtfCurrentValue,
-   s.DividendEtfStartYear,
-   s.DividendEtfHistoricalReturn);
-  decimal divStocksCostBasis = EstimateInitialCostBasis(
-   divStocks,
-   s.DividendStocksCurrentValue,
-   s.DividendStocksStartYear,
-   s.DividendStocksHistoricalReturn);
+  decimal cash = strategyCapital * allocation.Cash;
+  decimal worldNewInvestment = strategyCapital * allocation.WorldEtf;
+  decimal divEtfNewInvestment = strategyCapital * allocation.DividendEtf;
+  decimal divStocksNewInvestment = strategyCapital * allocation.DividendStocks;
+
+  decimal world = s.WorldEtfCurrentValue + worldNewInvestment;
+  decimal divEtf = s.DividendEtfCurrentValue + divEtfNewInvestment;
+  decimal divStocks = s.DividendStocksCurrentValue + divStocksNewInvestment;
+
+  decimal worldCostBasis =
+   EstimateInitialCostBasis(
+    s.WorldEtfCurrentValue,
+    s.WorldEtfCurrentValue,
+    s.WorldEtfStartYear,
+    s.WorldEtfHistoricalReturn,
+    s.PlanningYear) +
+   worldNewInvestment;
+  decimal divEtfCostBasis =
+   EstimateInitialCostBasis(
+    s.DividendEtfCurrentValue,
+    s.DividendEtfCurrentValue,
+    s.DividendEtfStartYear,
+    s.DividendEtfHistoricalReturn,
+    s.PlanningYear) +
+   divEtfNewInvestment;
+  decimal divStocksCostBasis =
+   EstimateInitialCostBasis(
+    s.DividendStocksCurrentValue,
+    s.DividendStocksCurrentValue,
+    s.DividendStocksStartYear,
+    s.DividendStocksHistoricalReturn,
+    s.PlanningYear) +
+   divStocksNewInvestment;
 
   decimal equityFundAdvanceLumpSumCarry = 0m;
   decimal pendingWorldAdvanceLumpSum = 0m;
@@ -786,7 +839,8 @@ public static class ProjectionService
    pendingWorldAdvanceLumpSum = 0m;
    pendingDividendEtfAdvanceLumpSum = 0m;
 
-   decimal factor = Pow(1m + s.InflationRate, offset);
+   int yearsFromCurrentYear = Math.Max(0, year - DateTime.Today.Year);
+   decimal factor = Pow(1m + s.InflationRate, yearsFromCurrentYear);
    decimal living = s.MonthlyLivingCosts * 12m * factor;
    decimal healthCare = 0m;
 
@@ -805,16 +859,16 @@ public static class ProjectionService
 
    if (stress && s.StressCrashAtStart && offset == 0)
    {
-    wr += s.StressCrashPercent;
-    er += s.StressCrashPercent;
-    sr += s.StressCrashPercent;
+    wr = s.StressCrashPercent;
+    er = s.StressCrashPercent;
+    sr = s.StressCrashPercent;
    }
 
    if (stress && s.StressSecondCrashEnabled && year == s.StressSecondCrashYear)
    {
-    wr += s.StressSecondCrashPercent;
-    er += s.StressSecondCrashPercent;
-    sr += s.StressSecondCrashPercent;
+    wr = s.StressSecondCrashPercent;
+    er = s.StressSecondCrashPercent;
+    sr = s.StressSecondCrashPercent;
    }
 
    decimal interest = cash * s.CashInterestRate;
@@ -1213,12 +1267,13 @@ public static class ProjectionService
   decimal simulatedValue,
   decimal currentValue,
   int startYear,
-  decimal historicalReturn)
+  decimal historicalReturn,
+  int valuationYear)
  {
   if (simulatedValue <= 0m || currentValue <= 0m)
    return Math.Max(0m, simulatedValue);
 
-  int yearsHeld = Math.Max(0, DateTime.Today.Year - startYear);
+  int yearsHeld = Math.Max(0, valuationYear - startYear);
   if (yearsHeld == 0)
    return Math.Max(0m, simulatedValue);
 

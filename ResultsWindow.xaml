@@ -214,6 +214,8 @@
         <DataGridTextColumn Header="freiw. GKV/Pflege P1 mtl." Binding="{Binding HealthCareCostsPerson1Monthly, StringFormat={}{0:N0} €}" Width="85"/>
         <DataGridTextColumn Header="freiw. GKV/Pflege P2 mtl." Binding="{Binding HealthCareCostsPerson2Monthly, StringFormat={}{0:N0} €}" Width="85"/>
         <DataGridTextColumn Header="Rente brutto p.a." Binding="{Binding PensionGross, StringFormat={}{0:N0} €}" Width="100"/>
+        <DataGridTextColumn Header="Rente P1 brutto p.a." Binding="{Binding PensionPerson1Gross, StringFormat={}{0:N0} €}" Width="100"/>
+        <DataGridTextColumn Header="Rente P2 brutto p.a." Binding="{Binding PensionPerson2Gross, StringFormat={}{0:N0} €}" Width="100"/>
         <DataGridTextColumn Header="GKV/Pflege aus Rente p.a." Binding="{Binding PensionHealthAndCareDeductions, StringFormat={}{0:N0} €}" Width="110"/>
         <DataGridTextColumn Header="Rente netto p.a." Binding="{Binding PensionNet, StringFormat={}{0:N0} €}" Width="100"/>
         <DataGridTextColumn Header="Nettoeinkommen P2 verwendet p.a." Binding="{Binding FundingFromPerson2Income, StringFormat={}{0:N0} €}" Width="130"/>
