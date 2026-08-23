@@ -79,10 +79,16 @@ Das Ergebnisfenster kann parallel zum Hauptfenster geöffnet bleiben und wird na
 
 ## Speicherung
 
-Die Anwendung speichert ihre Dateien im Programmverzeichnis:
+Die Anwendung speichert bzw. verwendet folgende Dateien im Programmverzeichnis:
 
-- `settings.json`
-- `window-sizes.json`
+- `settings.json` – enthält die gespeicherten Planungseinstellungen und die Strategieaufteilung
+- `window-sizes.json` – speichert die Fenstergrößen und den maximierten Zustand der Fenster
+- `RockefellerFiction.log.br` – enthält das komprimierte Berechnungsprotokoll der zuletzt ausgeführten Berechnung
+- `hints.json` – enthält die in der Anwendung angezeigten Hilfetexte
+
+Planungseinstellungen können zusätzlich manuell als `.json`- oder `.csv`-Datei exportiert und wieder importiert werden.
+
+> **Wichtig:** RockefellerFiction benötigt Schreibrechte im Programmverzeichnis, damit Einstellungen, Fenstergrößen und das Berechnungsprotokoll gespeichert werden können.
 
 ## Technik
 
@@ -96,6 +102,25 @@ Die Anwendung speichert ihre Dateien im Programmverzeichnis:
 RockefellerFiction ist ein Planungs- und Simulationswerkzeug.
 
 Die Berechnungen beruhen auf den eingegebenen Annahmen und den im Programm hinterlegten Modellregeln. Zukünftige Steuer-, Renten-, Versicherungs- oder Kapitalmarktentwicklungen können davon abweichen.
+
+## Windows SmartScreen-Warnung
+
+Windows SmartScreen kann **RockefellerFiction** blockieren, da die Anwendung noch nicht weit verbreitet bzw. von Microsoft als bekannt eingestuft ist.
+
+Diese Warnung bedeutet **nicht automatisch**, dass die Anwendung schädlich ist.
+
+Fahre nur fort, wenn du **RockefellerFiction aus dem offiziellen GitHub-Repository** heruntergeladen hast.
+
+## RockefellerFiction trotzdem starten
+
+1. Klicke auf **Weitere Informationen**.
+2. Klicke auf **Trotzdem ausführen**.
+3. Bestätige gegebenenfalls die Windows-Sicherheitsabfrage.
+4. **RockefellerFiction** wird gestartet.
+
+> **Wichtig:** Starte die Anwendung nicht, wenn du sie aus einer unbekannten oder nicht vertrauenswürdigen Quelle heruntergeladen hast.
+<img width="518" height="225" alt="grafik" src="https://github.com/user-attachments/assets/efc9eee4-7bcc-451d-9d6e-a9c29662477f" />
+
 
 
 ## Screenshots
