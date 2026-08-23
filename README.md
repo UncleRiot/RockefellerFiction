@@ -79,10 +79,16 @@ Das Ergebnisfenster kann parallel zum Hauptfenster geöffnet bleiben und wird na
 
 ## Speicherung
 
-Die Anwendung speichert ihre Dateien im Programmverzeichnis:
+Die Anwendung speichert bzw. verwendet folgende Dateien im Programmverzeichnis:
 
-- `settings.json`
-- `window-sizes.json`
+- `settings.json` – enthält die gespeicherten Planungseinstellungen und die Strategieaufteilung
+- `window-sizes.json` – speichert die Fenstergrößen und den maximierten Zustand der Fenster
+- `RockefellerFiction.log.br` – enthält das komprimierte Berechnungsprotokoll der zuletzt ausgeführten Berechnung
+- `hints.json` – enthält die in der Anwendung angezeigten Hilfetexte
+
+Planungseinstellungen können zusätzlich manuell als `.json`- oder `.csv`-Datei exportiert und wieder importiert werden.
+
+> **Wichtig:** RockefellerFiction benötigt Schreibrechte im Programmverzeichnis, damit Einstellungen, Fenstergrößen und das Berechnungsprotokoll gespeichert werden können.
 
 ## Technik
 
