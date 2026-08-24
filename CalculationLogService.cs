@@ -79,7 +79,7 @@ public static class CalculationLogService
   AppendTitle(text, "EINGABEN");
 
   AppendValue(text, "Haushalt", $"{Math.Max(1, s.HouseholdPersonCount)} Person(en)");
-  AppendValue(text, "Simulationsstartjahr", s.PlanningYear);
+  AppendValue(text, "Simulationsstartjahr (automatisch = Arbeitsende Person 1)", s.PlanningYear);
   AppendValue(
    text,
    "Vorzeitiges Arbeitsende Person 1",
@@ -107,13 +107,23 @@ public static class CalculationLogService
 
   AppendMoney(text, "Rente Person 1 heute bereits erworben brutto pro Monat", s.Person1PensionGrossMonthly);
   AppendMoney(text, "Rente Person 1 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person1ProjectedPensionGrossMonthlyAt67);
+  AppendValue(text, "Entgeltpunkte Person 1 optional", s.Person1CurrentPensionPoints.ToString("N4", GermanCulture));
+  AppendMoney(text, "RV-pflichtiges Jahresbrutto Person 1 optional", s.Person1PensionableAnnualGross);
+  AppendPercent(text, "RV-Brutto-Steigerung Person 1 p.a. optional", s.Person1PensionableAnnualGrossIncreaseRate);
+  AppendPercent(text, "Durchschnittsentgelt Rentenversicherung Steigerung p.a.", s.PensionAverageAnnualEarningsIncreaseRate);
   AppendValue(text, "KVdR Person 1", s.KvdrPerson1 ? "Ja" : "Nein");
   if (s.HouseholdPersonCount == 2)
   {
    AppendMoney(text, "Rente Person 2 heute bereits erworben brutto pro Monat", s.Person2PensionGrossMonthly);
    AppendMoney(text, "Rente Person 2 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person2ProjectedPensionGrossMonthlyAt67);
+   AppendValue(text, "Entgeltpunkte Person 2 optional", s.Person2CurrentPensionPoints.ToString("N4", GermanCulture));
+   AppendMoney(text, "RV-pflichtiges Jahresbrutto Person 2 optional", s.Person2PensionableAnnualGross);
+   AppendPercent(text, "RV-Brutto-Steigerung Person 2 p.a. optional", s.Person2PensionableAnnualGrossIncreaseRate);
    AppendValue(text, "KVdR Person 2", s.KvdrPerson2 ? "Ja" : "Nein");
   }
+
+  AppendPensionProjectionDiagnostics(text, s);
+  text.AppendLine();
 
   AppendMoney(text, "GKV/Pflege Mindest-Bemessungsgrundlage pro Monat", s.VoluntaryHealthInsuranceMinimumMonthlyIncome);
   AppendMoney(text, "GKV/Pflege Beitragsbemessungsgrenze pro Monat", s.VoluntaryHealthInsuranceMaximumMonthlyIncome);
@@ -186,6 +196,101 @@ public static class CalculationLogService
 
   AppendCashFlows(text, "Einmalige Einnahmen", s.OneTimeIncome);
   AppendCashFlows(text, "Einmalige Ausgaben", s.OneTimeExpenses);
+  text.AppendLine();
+ }
+
+ private static void AppendPensionProjectionDiagnostics(
+  StringBuilder text,
+  PlannerSettings s)
+ {
+  AppendTitle(text, "RENTENBERECHNUNG - DIAGNOSEDATEN");
+
+  int person1WorkEndYear =
+   s.Person1WorkEndYear > 0
+    ? s.Person1WorkEndYear
+    : s.PlanningYear;
+
+  PensionProjectionDiagnostics person1 =
+   PensionService.CalculatePensionProjectionDiagnostics(
+    s.Person1PensionGrossMonthly,
+    s.Person1ProjectedPensionGrossMonthlyAt67,
+    s.Person1CurrentPensionPoints,
+    s.Person1PensionableAnnualGross,
+    s.Person1PensionableAnnualGrossIncreaseRate,
+    s.PensionAverageAnnualEarningsIncreaseRate,
+    s.Person1Age,
+    person1WorkEndYear,
+    s.Person1RetirementAge);
+
+  AppendPensionProjectionDiagnosticsForPerson(
+   text,
+   "Person 1",
+   person1,
+   person1WorkEndYear,
+   s.Person1RetirementAge);
+
+  if (s.HouseholdPersonCount == 2)
+  {
+   int person2WorkEndYear =
+    s.Person2WorkEndYear > 0
+     ? s.Person2WorkEndYear
+     : s.PlanningYear;
+
+   PensionProjectionDiagnostics person2 =
+    PensionService.CalculatePensionProjectionDiagnostics(
+     s.Person2PensionGrossMonthly,
+     s.Person2ProjectedPensionGrossMonthlyAt67,
+     s.Person2CurrentPensionPoints,
+     s.Person2PensionableAnnualGross,
+     s.Person2PensionableAnnualGrossIncreaseRate,
+     s.PensionAverageAnnualEarningsIncreaseRate,
+     s.Person2Age,
+     person2WorkEndYear,
+     s.Person2RetirementAge);
+
+   AppendPensionProjectionDiagnosticsForPerson(
+    text,
+    "Person 2",
+    person2,
+    person2WorkEndYear,
+    s.Person2RetirementAge);
+  }
+ }
+
+ private static void AppendPensionProjectionDiagnosticsForPerson(
+  StringBuilder text,
+  string person,
+  PensionProjectionDiagnostics diagnostics,
+  int workEndYear,
+  int retirementAge)
+ {
+  text.AppendLine($"[{person}]");
+  AppendValue(text, "Quelle heutige Rentenanwartschaft", diagnostics.CurrentPensionSource);
+  AppendValue(text, "Quelle zukünftige Anwartschaft", diagnostics.FutureAccrualSource);
+  AppendMoney(text, "Eingabe heute bereits erworbene Rente mtl.", diagnostics.EnteredCurrentPensionMonthly);
+  AppendMoney(text, "Eingabe DRV-Hochrechnung bis 67 mtl.", diagnostics.EnteredProjectedPensionMonthlyAt67);
+  AppendValue(text, "Eingabe Entgeltpunkte", diagnostics.EnteredCurrentPensionPoints.ToString("N4", GermanCulture));
+  AppendMoney(text, "Eingabe RV-pflichtiges Jahresbrutto", diagnostics.EnteredPensionableAnnualGross);
+  AppendPercent(text, "Eingabe RV-Brutto-Steigerung p.a.", diagnostics.EnteredPensionableAnnualGrossIncreaseRate);
+  AppendPercent(text, "Eingabe Durchschnittsentgelt-Steigerung p.a.", diagnostics.EnteredAverageAnnualEarningsIncreaseRate);
+  AppendMoney(text, "Verwendete heutige Rentenanwartschaft mtl.", diagnostics.CurrentPensionMonthlyUsed);
+  AppendValue(text, "Arbeitsende Jahr", workEndYear);
+  AppendValue(text, "Arbeitsende Alter rechnerisch", diagnostics.WorkEndAge);
+  AppendValue(text, "Geplanter Rentenbeginn Alter", retirementAge);
+  AppendValue(text, "Jahre bis Regelalter 67", diagnostics.YearsToRegularRetirement);
+  AppendValue(text, "Beitragsende Alter rechnerisch", diagnostics.ContributionEndAge);
+  AppendValue(text, "Zusätzliche Beitragsjahre berücksichtigt", diagnostics.AdditionalContributionYears);
+  AppendMoney(text, "RV-pflichtiges Jahresbrutto nach BBG-Begrenzung erstes Jahr", diagnostics.PensionableAnnualGrossUsed);
+  AppendMoney(text, "RV-pflichtiges Jahresbrutto nach BBG-Begrenzung letztes Jahr", diagnostics.PensionableAnnualGrossLastYear);
+  AppendMoney(text, "Durchschnittsentgelt erstes Beitragsjahr", diagnostics.AverageAnnualEarningsFirstYear);
+  AppendMoney(text, "Durchschnittsentgelt letztes Beitragsjahr", diagnostics.AverageAnnualEarningsLastYear);
+  AppendValue(text, "Entgeltpunkte erstes zusätzliches Beitragsjahr", diagnostics.AnnualPensionPoints.ToString("N6", GermanCulture));
+  AppendValue(text, "Entgeltpunkte letztes zusätzliches Beitragsjahr", diagnostics.AnnualPensionPointsLastYear.ToString("N6", GermanCulture));
+  AppendValue(text, "Zusätzliche Entgeltpunkte gesamt", diagnostics.AdditionalPensionPoints.ToString("N6", GermanCulture));
+  AppendMoney(text, "Zusätzliche Rentenanwartschaft mtl.", diagnostics.AdditionalPensionMonthly);
+  AppendMoney(text, "Rente vor Rentensteigerung und vor Abschlag mtl.", diagnostics.MonthlyAtRetirementBeforePensionIncrease);
+  AppendPercent(text, "Zugangsfaktor nach vorzeitigem Rentenbeginn", diagnostics.EarlyRetirementFactor);
+  AppendMoney(text, "Rente vor Rentensteigerung nach Abschlag mtl.", diagnostics.MonthlyAtRetirementAfterEarlyRetirementFactor);
   text.AppendLine();
  }
 

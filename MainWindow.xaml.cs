@@ -44,9 +44,13 @@ public partial class MainWindow : Window
  {
   _fieldNumber = 0;
 
+  if (_settings.Person1WorkEndYear <= 0)
+   _settings.Person1WorkEndYear = _settings.PlanningYear;
+
+  _settings.PlanningYear = _settings.Person1WorkEndYear;
+
   AddSection("1. Startvermögen");
   AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital);
-  AddInt("PlanningYear", "Simulationsstartjahr", _settings.PlanningYear);
 
         AddSection("2. Planung");
   AddChoice("HouseholdPersonCount", "Haushalt",
@@ -60,8 +64,8 @@ public partial class MainWindow : Window
    _settings.Person2WorkEndYear > 0 ? _settings.Person2WorkEndYear : _settings.PlanningYear);
   AddMoney("Person2NetIncomeMonthly", "Nettoeinkommen Person 2 pro Monat", _settings.Person2NetIncomeMonthly);
   AddPercent("Person2NetIncomeIncreaseRate", "Nettoeinkommen-Steigerung Person 2 pro Jahr [Standardwert]", _settings.Person2NetIncomeIncreaseRate);
-  AddInt("Person1RetirementAge", "Beginn gesetzliche Rente Person 1", _settings.Person1RetirementAge);
-  AddInt("Person2RetirementAge", "Beginn gesetzliche Rente Person 2", _settings.Person2RetirementAge);
+  AddInt("Person1RetirementAge", "Geplanter Beginn gesetzliche Altersrente Person 1", _settings.Person1RetirementAge);
+  AddInt("Person2RetirementAge", "Geplanter Beginn gesetzliche Altersrente Person 2", _settings.Person2RetirementAge);
   AddInt("Person1EndAge", "Lebenserwartung Person 1 [Standardwert]", _settings.Person1EndAge);
   AddInt("Person2EndAge", "Lebenserwartung Person 2 [Standardwert]", _settings.Person2EndAge);
 
@@ -87,11 +91,18 @@ public partial class MainWindow : Window
   AddPercent("CareInsuranceRateAnnualChange", "Pflegeversicherung Änderung p.a. in Prozentpunkten [Standardwert]", _settings.CareInsuranceRateAnnualChange);
   AddReadOnlyMoney("CalculatedHealthPerson1Monthly", "Berechnete GKV/Pflege Person 1 pro Monat", 0m);
   AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m);
-  AddSection("5. Gesetzliche Rente");
+  AddSection("5. Gesetzliche Rente – Werte aus der Renteninformation");
   AddMoney("Person1PensionGrossMonthly", "Rente Person 1 – heute bereits erworben (brutto/Monat)", _settings.Person1PensionGrossMonthly);
   AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – heute bereits erworben (brutto/Monat)", _settings.Person2PensionGrossMonthly);
-  AddMoney("Person1ProjectedPensionGrossMonthlyAt67", "Rente Person 1 – Hochrechnung bei Beiträgen bis 67 (brutto/Monat)", _settings.Person1ProjectedPensionGrossMonthlyAt67);
-  AddMoney("Person2ProjectedPensionGrossMonthlyAt67", "Rente Person 2 – Hochrechnung bei Beiträgen bis 67 (brutto/Monat)", _settings.Person2ProjectedPensionGrossMonthlyAt67);
+  AddMoney("Person1ProjectedPensionGrossMonthlyAt67", "Rente Person 1 – DRV-Hochrechnung bis 67 (optional, brutto/Monat)", _settings.Person1ProjectedPensionGrossMonthlyAt67);
+  AddMoney("Person2ProjectedPensionGrossMonthlyAt67", "Rente Person 2 – DRV-Hochrechnung bis 67 (optional, brutto/Monat)", _settings.Person2ProjectedPensionGrossMonthlyAt67);
+  AddDecimal("Person1CurrentPensionPoints", "Entgeltpunkte Person 1 (optional)", _settings.Person1CurrentPensionPoints);
+  AddDecimal("Person2CurrentPensionPoints", "Entgeltpunkte Person 2 (optional)", _settings.Person2CurrentPensionPoints);
+  AddMoney("Person1PensionableAnnualGross", "RV-pflichtiges Jahresbrutto Person 1 (optional)", _settings.Person1PensionableAnnualGross);
+  AddMoney("Person2PensionableAnnualGross", "RV-pflichtiges Jahresbrutto Person 2 (optional)", _settings.Person2PensionableAnnualGross);
+  AddPercent("Person1PensionableAnnualGrossIncreaseRate", "RV-Brutto-Steigerung Person 1 p.a. (optional)", _settings.Person1PensionableAnnualGrossIncreaseRate);
+  AddPercent("Person2PensionableAnnualGrossIncreaseRate", "RV-Brutto-Steigerung Person 2 p.a. (optional)", _settings.Person2PensionableAnnualGrossIncreaseRate);
+  AddPercent("PensionAverageAnnualEarningsIncreaseRate", "Durchschnittsentgelt Rentenversicherung – Steigerung p.a. [Standardwert]", _settings.PensionAverageAnnualEarningsIncreaseRate);
   AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1);
   AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2);
 
@@ -217,6 +228,8 @@ public partial class MainWindow : Window
   if (type == InputType.Money)
    textBox.TextChanged += MoneyTextBox_TextChanged;
 
+  textBox.GotKeyboardFocus += TextBox_GotKeyboardFocus;
+  textBox.LostKeyboardFocus += TextBox_LostKeyboardFocus;
   textBox.TextChanged += (_, _) => UpdateCalculatedHealthDisplays();
   textBox.TextChanged += (_, _) => _hasUnsavedChanges = true;
   if (key is "AllocCash" or "AllocWorld" or "AllocDividendEtf" or "AllocDividendStocks")
@@ -372,6 +385,9 @@ public partial class MainWindow : Window
    "CalculatedHealthPerson2Monthly",
    "Person2PensionGrossMonthly",
    "Person2ProjectedPensionGrossMonthlyAt67",
+   "Person2CurrentPensionPoints",
+   "Person2PensionableAnnualGross",
+   "Person2PensionableAnnualGrossIncreaseRate",
    "KvdrPerson2",
    "JointTaxation"
   ];
@@ -578,8 +594,8 @@ public partial class MainWindow : Window
    previewSettings.HouseholdPersonCount = ReadHouseholdPersonCount();
    previewSettings.StartCapital = ReadDecimal("StartCapital", 0m, 1000000000m);
    previewSettings.Person1Age = ReadInt("Person1CurrentAge");
-   previewSettings.PlanningYear = ReadInt("PlanningYear");
    previewSettings.Person1WorkEndYear = ReadInt("Person1WorkEndYear");
+   previewSettings.PlanningYear = previewSettings.Person1WorkEndYear;
    previewSettings.Person1RetirementAge = ReadInt("Person1RetirementAge");
 
    if (previewSettings.HouseholdPersonCount == 2)
@@ -788,6 +804,38 @@ public partial class MainWindow : Window
   }
  }
 
+ private void Wizard_Click(object sender, RoutedEventArgs e)
+ {
+  var window = new WizardWindow(_settings, _allocation)
+  {
+   Owner = this
+  };
+
+  if (window.ShowDialog() != true)
+   return;
+
+  _settings = window.Settings;
+  _allocation = window.Allocation;
+
+  _baseResult = null;
+  _stressResult = null;
+  ResultsButton.IsEnabled = false;
+
+  _inputs.Clear();
+  InputSubTabs.Items.Clear();
+  _currentInputPanel = null;
+  BuildInputForm();
+
+  _hasUnsavedChanges = true;
+  UpdateCalculationDocumentation();
+
+  StatusText.Text = "Wizard-Eingaben übernommen.";
+  StatusText.Foreground = (Brush)FindResource("SuccessBrush");
+
+  if (window.StartCalculation)
+   Calculate_Click(this, new RoutedEventArgs());
+ }
+
  private void About_Click(object sender, RoutedEventArgs e)
  {
   var window = new AboutWindow
@@ -833,8 +881,8 @@ public partial class MainWindow : Window
   {
    _settings.HouseholdPersonCount = ReadHouseholdPersonCount();
    _settings.Person1Age = ReadInt("Person1CurrentAge");
-   _settings.PlanningYear = ReadInt("PlanningYear");
    _settings.Person1WorkEndYear = ReadInt("Person1WorkEndYear");
+   _settings.PlanningYear = _settings.Person1WorkEndYear;
    _settings.Person1RetirementAge = ReadInt("Person1RetirementAge");
    _settings.Person1EndAge = ReadInt("Person1EndAge");
 
@@ -863,12 +911,19 @@ public partial class MainWindow : Window
 
    _settings.Person1PensionGrossMonthly = ReadDecimal("Person1PensionGrossMonthly", 0m, 100000m);
    _settings.Person1ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person1ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
+   _settings.Person1CurrentPensionPoints = ReadDecimal("Person1CurrentPensionPoints", 0m, 1000m);
+   _settings.Person1PensionableAnnualGross = ReadDecimal("Person1PensionableAnnualGross", 0m, 1000000m);
+   _settings.Person1PensionableAnnualGrossIncreaseRate = ReadPercent("Person1PensionableAnnualGrossIncreaseRate", -0.50m, 0.50m);
+   _settings.PensionAverageAnnualEarningsIncreaseRate = ReadPercent("PensionAverageAnnualEarningsIncreaseRate", -0.10m, 0.20m);
    _settings.KvdrPerson1 = ReadBool("KvdrPerson1");
 
    if (_settings.HouseholdPersonCount == 2)
    {
     _settings.Person2PensionGrossMonthly = ReadDecimal("Person2PensionGrossMonthly", 0m, 100000m);
     _settings.Person2ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person2ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
+    _settings.Person2CurrentPensionPoints = ReadDecimal("Person2CurrentPensionPoints", 0m, 1000m);
+    _settings.Person2PensionableAnnualGross = ReadDecimal("Person2PensionableAnnualGross", 0m, 1000000m);
+    _settings.Person2PensionableAnnualGrossIncreaseRate = ReadPercent("Person2PensionableAnnualGrossIncreaseRate", -0.50m, 0.50m);
     _settings.KvdrPerson2 = ReadBool("KvdrPerson2");
    }
 
@@ -941,10 +996,6 @@ public partial class MainWindow : Window
    _settings.HouseIncluded = ReadBool("HouseIncluded");
    _settings.HouseSaleYear = ReadInt("HouseSaleYear");
    _settings.HouseNetSaleProceeds = ReadDecimal("HouseNetSaleProceeds", 0m, 100000000m);
-
-   if (_settings.PlanningYear < _settings.Person1WorkEndYear)
-    throw new InvalidOperationException(
-     "Das Simulationsstartjahr darf nicht vor dem vorzeitigen Arbeitsende von Person 1 liegen.");
 
    int workEndAgePerson1 =
     _settings.Person1Age + (_settings.Person1WorkEndYear - DateTime.Today.Year);
@@ -1056,6 +1107,27 @@ public partial class MainWindow : Window
   return value % 1m == 0m
    ? value.ToString("N0", GermanCulture)
    : value.ToString("N2", GermanCulture);
+ }
+
+ private void TextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+ {
+  if (sender is not TextBox textBox ||
+      Mouse.LeftButton == MouseButtonState.Pressed ||
+      Mouse.RightButton == MouseButtonState.Pressed)
+   return;
+
+  textBox.SelectAll();
+ }
+
+ private void TextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+ {
+  if (sender is not TextBox textBox ||
+      !string.IsNullOrWhiteSpace(textBox.Text) ||
+      textBox.Tag is not InputType inputType ||
+      inputType == InputType.Integer)
+   return;
+
+  textBox.Text = "0";
  }
 
  private void MoneyTextBox_TextChanged(object sender, TextChangedEventArgs e)

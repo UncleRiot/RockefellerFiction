@@ -7,6 +7,9 @@ public static class PensionService
  private const decimal EarlyRetirementReductionPerMonth = 0.003m;
  private const decimal MaximumEarlyRetirementReduction = 0.144m;
  private const decimal PensionIncomeExpenseAllowancePerPerson = 102m;
+ private const decimal CurrentPensionValue2026 = 42.52m;
+ private const decimal ProvisionalAverageAnnualEarnings2026 = 51944m;
+ private const decimal PensionContributionAssessmentCeilingAnnual2026 = 101400m;
 
  public static HealthInsuranceProjectionParameters CalculateHealthInsuranceProjectionParameters(
   PlannerSettings s,
@@ -65,6 +68,10 @@ public static class PensionService
    CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
     s.Person1PensionGrossMonthly,
     s.Person1ProjectedPensionGrossMonthlyAt67,
+    s.Person1CurrentPensionPoints,
+    s.Person1PensionableAnnualGross,
+    s.Person1PensionableAnnualGrossIncreaseRate,
+    s.PensionAverageAnnualEarningsIncreaseRate,
     s.Person1Age,
     person1WorkEndYear,
     s.Person1RetirementAge);
@@ -78,6 +85,10 @@ public static class PensionService
    CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
     s.Person2PensionGrossMonthly,
     s.Person2ProjectedPensionGrossMonthlyAt67,
+    s.Person2CurrentPensionPoints,
+    s.Person2PensionableAnnualGross,
+    s.Person2PensionableAnnualGrossIncreaseRate,
+    s.PensionAverageAnnualEarningsIncreaseRate,
     s.Person2Age,
     person2WorkEndYear,
     s.Person2RetirementAge);
@@ -436,26 +447,35 @@ public static class PensionService
   return Math.Max(0m, Math.Floor(tax));
  }
 
- private static decimal CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
+ public static PensionProjectionDiagnostics CalculatePensionProjectionDiagnostics(
   decimal currentGrossMonthly,
   decimal projectedGrossMonthlyAt67,
+  decimal currentPensionPoints,
+  decimal pensionableAnnualGross,
+  decimal pensionableAnnualGrossIncreaseRate,
+  decimal averageAnnualEarningsIncreaseRate,
   int currentAge,
   int workEndYear,
   int retirementAge)
  {
-  decimal currentPension = Math.Max(0m, currentGrossMonthly);
-  decimal projectedPensionAt67 =
-   Math.Max(currentPension, projectedGrossMonthlyAt67);
+  decimal enteredCurrentPension = Math.Max(0m, currentGrossMonthly);
+  decimal enteredProjectedPension = Math.Max(0m, projectedGrossMonthlyAt67);
+  decimal pensionPoints = Math.Max(0m, currentPensionPoints);
+  decimal annualGross = Math.Max(0m, pensionableAnnualGross);
+  decimal grossIncreaseRate = Math.Max(-0.50m, pensionableAnnualGrossIncreaseRate);
+  decimal averageEarningsIncreaseRate = Math.Max(-0.10m, averageAnnualEarningsIncreaseRate);
+
+  string currentPensionSource =
+   pensionPoints > 0m
+    ? "Entgeltpunkte"
+    : "Heute bereits erworbene Rente";
+
+  decimal currentPension = pensionPoints > 0m
+   ? pensionPoints * CurrentPensionValue2026
+   : enteredCurrentPension;
 
   int yearsToRegularRetirement =
    Math.Max(0, RegularRetirementAge - currentAge);
-
-  if (yearsToRegularRetirement == 0)
-   return currentPension;
-
-  decimal additionalPensionPerContributionYear =
-   (projectedPensionAt67 - currentPension) /
-   yearsToRegularRetirement;
 
   int workEndAge =
    currentAge +
@@ -472,8 +492,140 @@ public static class PensionService
     0,
     yearsToRegularRetirement);
 
-  return currentPension +
-         (additionalPensionPerContributionYear * additionalContributionYears);
+  decimal pensionableGrossUsed = 0m;
+  decimal pensionableGrossLastYear = 0m;
+  decimal averageAnnualEarningsFirstYear = 0m;
+  decimal averageAnnualEarningsLastYear = 0m;
+  decimal annualPensionPoints = 0m;
+  decimal annualPensionPointsLastYear = 0m;
+  decimal additionalPensionPoints = 0m;
+  decimal additionalPensionMonthly = 0m;
+  string futureAccrualSource = "Keine zusätzlichen Anwartschaften";
+
+  if (yearsToRegularRetirement > 0 &&
+      additionalContributionYears > 0)
+  {
+   if (annualGross > 0m)
+   {
+    futureAccrualSource = "RV-pflichtiges Jahresbrutto";
+
+    for (int contributionYearIndex = 0;
+         contributionYearIndex < additionalContributionYears;
+         contributionYearIndex++)
+    {
+     decimal grossForYear =
+      annualGross *
+      Pow(1m + grossIncreaseRate, contributionYearIndex);
+
+     decimal averageEarningsForYear =
+      ProvisionalAverageAnnualEarnings2026 *
+      Pow(1m + averageEarningsIncreaseRate, contributionYearIndex);
+
+     decimal assessmentCeilingForYear =
+      PensionContributionAssessmentCeilingAnnual2026 *
+      Pow(1m + averageEarningsIncreaseRate, contributionYearIndex);
+
+     decimal pensionableGrossForYear =
+      Math.Min(
+       grossForYear,
+       assessmentCeilingForYear);
+
+     decimal pensionPointsForYear =
+      averageEarningsForYear > 0m
+       ? pensionableGrossForYear / averageEarningsForYear
+       : 0m;
+
+     if (contributionYearIndex == 0)
+     {
+      pensionableGrossUsed = pensionableGrossForYear;
+      averageAnnualEarningsFirstYear = averageEarningsForYear;
+      annualPensionPoints = pensionPointsForYear;
+     }
+
+     pensionableGrossLastYear = pensionableGrossForYear;
+     averageAnnualEarningsLastYear = averageEarningsForYear;
+     annualPensionPointsLastYear = pensionPointsForYear;
+     additionalPensionPoints += pensionPointsForYear;
+    }
+
+    additionalPensionMonthly =
+     additionalPensionPoints * CurrentPensionValue2026;
+   }
+   else
+   {
+    decimal projectedPensionAt67 =
+     Math.Max(enteredCurrentPension, enteredProjectedPension);
+
+    if (projectedPensionAt67 > enteredCurrentPension)
+    {
+     futureAccrualSource = "DRV-Hochrechnung bis 67";
+
+     decimal additionalPensionPerContributionYear =
+      (projectedPensionAt67 - enteredCurrentPension) /
+      yearsToRegularRetirement;
+
+     additionalPensionMonthly =
+      additionalPensionPerContributionYear *
+      additionalContributionYears;
+    }
+   }
+  }
+
+  decimal monthlyAtRetirementBeforePensionIncrease =
+   currentPension + additionalPensionMonthly;
+
+  decimal earlyRetirementFactor =
+   CalculateEarlyRetirementFactor(retirementAge);
+
+  return new PensionProjectionDiagnostics(
+   currentPensionSource,
+   futureAccrualSource,
+   enteredCurrentPension,
+   enteredProjectedPension,
+   pensionPoints,
+   annualGross,
+   grossIncreaseRate,
+   averageEarningsIncreaseRate,
+   currentPension,
+   yearsToRegularRetirement,
+   workEndAge,
+   contributionEndAge,
+   additionalContributionYears,
+   pensionableGrossUsed,
+   pensionableGrossLastYear,
+   averageAnnualEarningsFirstYear,
+   averageAnnualEarningsLastYear,
+   annualPensionPoints,
+   annualPensionPointsLastYear,
+   additionalPensionPoints,
+   additionalPensionMonthly,
+   monthlyAtRetirementBeforePensionIncrease,
+   earlyRetirementFactor,
+   monthlyAtRetirementBeforePensionIncrease * earlyRetirementFactor);
+ }
+
+ private static decimal CalculateMonthlyPensionAtRetirementBeforePensionIncrease(
+  decimal currentGrossMonthly,
+  decimal projectedGrossMonthlyAt67,
+  decimal currentPensionPoints,
+  decimal pensionableAnnualGross,
+  decimal pensionableAnnualGrossIncreaseRate,
+  decimal averageAnnualEarningsIncreaseRate,
+  int currentAge,
+  int workEndYear,
+  int retirementAge)
+ {
+  return CalculatePensionProjectionDiagnostics(
+   currentGrossMonthly,
+   projectedGrossMonthlyAt67,
+   currentPensionPoints,
+   pensionableAnnualGross,
+   pensionableAnnualGrossIncreaseRate,
+   averageAnnualEarningsIncreaseRate,
+   currentAge,
+   workEndYear,
+   retirementAge)
+   .MonthlyAtRetirementBeforePensionIncrease;
  }
 
  private static decimal CalculateEarlyRetirementFactor(int retirementAge)

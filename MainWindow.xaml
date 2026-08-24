@@ -42,7 +42,30 @@
     <Button Content="Speichern" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Save_Click"/>
     <Button Content="Export" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
     <Button Content="Import" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Import_Click"/>
-    <Button Content="About" Width="100" Padding="10,6" Style="{StaticResource SecondaryButton}" Click="About_Click"/>
+    <StackPanel>
+     <Button Content="About"
+             Width="100"
+             Padding="10,6"
+             Style="{StaticResource SecondaryButton}"
+             Click="About_Click"/>
+     <Button Width="100"
+             Margin="0,8,0,0"
+             Padding="6"
+             Style="{StaticResource SecondaryButton}"
+             Click="Wizard_Click"
+             ToolTip="Neu hier? Mit dem Wizard Schritt für Schritt zur ersten sinnvollen Simulation.">
+      <StackPanel>
+       <Image Source="Resources/Wizard.png"
+              Width="52"
+              Height="52"
+              Stretch="Uniform"/>
+       <TextBlock Text="Wizard"
+                  HorizontalAlignment="Center"
+                  Margin="0,4,0,0"
+                  FontWeight="SemiBold"/>
+      </StackPanel>
+     </Button>
+    </StackPanel>
    </StackPanel>
   </Grid>
 

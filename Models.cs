@@ -34,6 +34,13 @@ public sealed class PlannerSettings
  public decimal Person2PensionGrossMonthly { get; set; } = 1000m;
  public decimal Person1ProjectedPensionGrossMonthlyAt67 { get; set; }
  public decimal Person2ProjectedPensionGrossMonthlyAt67 { get; set; }
+ public decimal Person1CurrentPensionPoints { get; set; }
+ public decimal Person2CurrentPensionPoints { get; set; }
+ public decimal Person1PensionableAnnualGross { get; set; }
+ public decimal Person2PensionableAnnualGross { get; set; }
+ public decimal Person1PensionableAnnualGrossIncreaseRate { get; set; }
+ public decimal Person2PensionableAnnualGrossIncreaseRate { get; set; }
+ public decimal PensionAverageAnnualEarningsIncreaseRate { get; set; } = 0.032m;
 
  public decimal CapitalGainsAllowance { get; set; } = 2000m;
  public bool JointTaxation { get; set; } = true;
@@ -194,3 +201,29 @@ public sealed record HealthInsuranceProjectionParameters(
  decimal MaximumMonthlyIncome,
  decimal AdditionalRate,
  decimal CareRate);
+
+public sealed record PensionProjectionDiagnostics(
+ string CurrentPensionSource,
+ string FutureAccrualSource,
+ decimal EnteredCurrentPensionMonthly,
+ decimal EnteredProjectedPensionMonthlyAt67,
+ decimal EnteredCurrentPensionPoints,
+ decimal EnteredPensionableAnnualGross,
+ decimal EnteredPensionableAnnualGrossIncreaseRate,
+ decimal EnteredAverageAnnualEarningsIncreaseRate,
+ decimal CurrentPensionMonthlyUsed,
+ int YearsToRegularRetirement,
+ int WorkEndAge,
+ int ContributionEndAge,
+ int AdditionalContributionYears,
+ decimal PensionableAnnualGrossUsed,
+ decimal PensionableAnnualGrossLastYear,
+ decimal AverageAnnualEarningsFirstYear,
+ decimal AverageAnnualEarningsLastYear,
+ decimal AnnualPensionPoints,
+ decimal AnnualPensionPointsLastYear,
+ decimal AdditionalPensionPoints,
+ decimal AdditionalPensionMonthly,
+ decimal MonthlyAtRetirementBeforePensionIncrease,
+ decimal EarlyRetirementFactor,
+ decimal MonthlyAtRetirementAfterEarlyRetirementFactor);

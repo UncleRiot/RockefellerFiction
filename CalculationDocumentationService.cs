@@ -1,19 +1,10 @@
 using System.IO;
 using System.Text;
-using System.Text.Json;
 
 namespace RockefellerFiction;
 
 public static class CalculationDocumentationService
 {
- private static readonly string[] CalculationSourceFiles =
- [
-  "PensionService.cs",
-  "ProjectionService.cs",
-  "RecommendationService.cs",
-  "StrategyService.cs",
-  "TaxService.cs"
- ];
 
  public static string Build(
   PlannerSettings settings,
@@ -23,16 +14,16 @@ public static class CalculationDocumentationService
 
   AppendTitle(text, "BERECHNUNGSGRUNDLAGEN");
 
-  text.AppendLine("Diese Ansicht wird bei jedem Öffnen neu erzeugt.");
-  text.AppendLine("Die vollständigen aktuell verwendeten Einstellungen werden automatisch aus PlannerSettings und der aktuellen Strategieaufteilung ausgegeben.");
-  text.AppendLine("Die Berechnungsquellen werden vollständig direkt aus den aktuell im Projekt vorhandenen C#-Quelldateien gelesen.");
-  text.AppendLine("Ändert sich eine Einstellung, eine Formel oder eine Berechnungsmethode im Source, erscheint sie nach dem nächsten Öffnen dieser Lasche im automatischen Teil der Dokumentation.");
+  text.AppendLine("Diese Ansicht wird bei jedem Öffnen neu aus den aktuell verwendeten Einstellungen und denselben Berechnungsmethoden erzeugt, die auch die App verwendet.");
+  text.AppendLine("Statt C#-Sourcecode werden die wichtigsten Rechenwege in verständlicher Form mit den aktuell verwendeten Werten, Zwischenergebnissen und Formeln angezeigt.");
+  text.AppendLine("Die Renten- und GKV/Pflege-Beispiele werden direkt über PensionService berechnet. Dadurch entsprechen ihre angezeigten Zwischenergebnisse der tatsächlich verwendeten Berechnungslogik.");
+  text.AppendLine("Allgemeine Modellregeln werden zusätzlich mit der jeweils verantwortlichen Methode benannt, damit Abweichungen zwischen Beschreibung und Berechnung gezielt geprüft werden können.");
+  text.AppendLine("Stand der externen Quellenprüfung: 24.08.2026.");
   text.AppendLine();
 
   AppendCurrentValues(text, settings, allocation);
-  AppendCompleteSettingsSnapshot(text, settings, allocation);
   AppendHumanReadableCalculationFlow(text);
-  AppendDynamicSourceDocumentation(text);
+  AppendDynamicHumanReadableCalculations(text, settings, allocation);
 
   return text.ToString();
  }
@@ -47,10 +38,14 @@ public static class CalculationDocumentationService
   text.AppendLine($"Haushalt = {settings.HouseholdPersonCount} {(settings.HouseholdPersonCount == 1 ? "Person" : "Personen")}");
   if (settings.HouseholdPersonCount == 2)
    text.AppendLine($"Gemeinsame steuerliche Veranlagung = {(settings.JointTaxation ? "Ja" : "Nein")}");
-  text.AppendLine($"Simulationsstartjahr = {settings.PlanningYear}");
+  text.AppendLine($"Simulationsstartjahr (automatisch = Arbeitsende Person 1) = {settings.PlanningYear}");
   text.AppendLine($"Vorzeitiges Arbeitsende Person 1 = {(settings.Person1WorkEndYear > 0 ? settings.Person1WorkEndYear : settings.PlanningYear)}");
   text.AppendLine($"Heute bereits erworbene Bruttorente Person 1 = {settings.Person1PensionGrossMonthly:N2} € pro Monat");
   text.AppendLine($"Hochgerechnete Bruttorente Person 1 bei Beiträgen bis 67 = {settings.Person1ProjectedPensionGrossMonthlyAt67:N2} € pro Monat");
+  text.AppendLine($"Entgeltpunkte Person 1 optional = {settings.Person1CurrentPensionPoints:N4}");
+  text.AppendLine($"RV-pflichtiges Jahresbrutto Person 1 optional = {settings.Person1PensionableAnnualGross:N2} €");
+  text.AppendLine($"RV-Brutto-Steigerung Person 1 optional = {settings.Person1PensionableAnnualGrossIncreaseRate:P2}");
+  text.AppendLine($"Durchschnittsentgelt Rentenversicherung Steigerung = {settings.PensionAverageAnnualEarningsIncreaseRate:P2}");
 
   if (settings.HouseholdPersonCount == 2)
   {
@@ -59,15 +54,16 @@ public static class CalculationDocumentationService
    text.AppendLine($"Nettoeinkommen-Steigerung Person 2 = {settings.Person2NetIncomeIncreaseRate:P2}");
    text.AppendLine($"Heute bereits erworbene Bruttorente Person 2 = {settings.Person2PensionGrossMonthly:N2} € pro Monat");
    text.AppendLine($"Hochgerechnete Bruttorente Person 2 bei Beiträgen bis 67 = {settings.Person2ProjectedPensionGrossMonthlyAt67:N2} € pro Monat");
+   text.AppendLine($"Entgeltpunkte Person 2 optional = {settings.Person2CurrentPensionPoints:N4}");
+   text.AppendLine($"RV-pflichtiges Jahresbrutto Person 2 optional = {settings.Person2PensionableAnnualGross:N2} €");
+   text.AppendLine($"RV-Brutto-Steigerung Person 2 optional = {settings.Person2PensionableAnnualGrossIncreaseRate:P2}");
   }
 
   text.AppendLine($"Startvermögen = {settings.StartCapital:N2} €");
   text.AppendLine($"Monatliche Lebenshaltung = {settings.MonthlyLivingCosts:N2} €");
   text.AppendLine($"Inflation = {settings.InflationRate:P2}");
   text.AppendLine($"Rentensteigerung = {settings.PensionIncreaseRate:P2}");
-  text.AppendLine("Rente Person 1: Die zusätzliche Anwartschaft wird aus der Differenz zwischen heute bereits erworbener Rente und Hochrechnung bei Beiträgen bis 67 anteilig nach Beitragsjahren berechnet. Berücksichtigt werden Beitragsjahre bis zum früheren Zeitpunkt aus Arbeitsende, Rentenbeginn oder Alter 67. Danach werden ein möglicher Abschlag bei Rentenbeginn vor 67 und die eingestellte Rentensteigerung berücksichtigt.");
-  if (settings.HouseholdPersonCount == 2)
-   text.AppendLine("Rente Person 2: Die zusätzliche Anwartschaft wird aus der Differenz zwischen heute bereits erworbener Rente und Hochrechnung bei Beiträgen bis 67 anteilig nach Beitragsjahren berechnet. Berücksichtigt werden Beitragsjahre bis zum früheren Zeitpunkt aus Arbeitsende, Rentenbeginn oder Alter 67. Danach werden ein möglicher Abschlag bei Rentenbeginn vor 67 und die eingestellte Rentensteigerung berücksichtigt.");
+  text.AppendLine("Rentenlogik: Wenn Entgeltpunkte eingetragen sind, wird die heutige Rentenanwartschaft daraus mit dem Rentenwert 2026 von 42,52 € je Entgeltpunkt berechnet. Wenn zusätzlich ein RV-pflichtiges Jahresbrutto eingetragen ist, werden zukünftige Entgeltpunkte bis zum früheren Zeitpunkt aus Arbeitsende, Rentenbeginn oder Alter 67 für jedes Beitragsjahr einzeln berechnet. Ausgangswerte 2026 sind das vorläufige Durchschnittsentgelt von 51.944 € und die Beitragsbemessungsgrenze von 101.400 € pro Jahr. Das eigene RV-Brutto wird mit der optionalen Brutto-Steigerung fortgeschrieben; Durchschnittsentgelt und Beitragsbemessungsgrenze werden mit der eingestellten Durchschnittsentgelt-Steigerung fortgeschrieben. Ohne Jahresbrutto wird wie bisher die DRV-Hochrechnung bis 67 anteilig nach Beitragsjahren verwendet. Ohne Entgeltpunkte bleibt die eingegebene heute bereits erworbene Rente die Ausgangsbasis. Danach werden ein möglicher Abschlag bei Rentenbeginn vor 67 und die eingestellte Rentensteigerung berücksichtigt.");
   text.AppendLine($"GKV/Pflege Basisjahr = {settings.HealthInsuranceBaseYear}");
   text.AppendLine($"GKV/Pflege Bemessungsgrenzen Änderung p.a. = {settings.HealthInsuranceAssessmentIncreaseRate:P2}");
   text.AppendLine($"GKV-Zusatzbeitrag Änderung p.a. in Prozentpunkten = {settings.HealthInsuranceAdditionalRateAnnualChange:P2}");
@@ -105,27 +101,6 @@ public static class CalculationDocumentationService
   text.AppendLine();
  }
 
- private static void AppendCompleteSettingsSnapshot(
-  StringBuilder text,
-  PlannerSettings settings,
-  StrategyAllocation allocation)
- {
-  AppendTitle(text, "VOLLSTÄNDIGE EINSTELLUNGEN – AUTOMATISCH");
-
-  var jsonOptions = new JsonSerializerOptions
-  {
-   WriteIndented = true
-  };
-
-  text.AppendLine("PlannerSettings:");
-  text.AppendLine(JsonSerializer.Serialize(settings, jsonOptions));
-  text.AppendLine();
-
-  text.AppendLine("StrategyAllocation:");
-  text.AppendLine(JsonSerializer.Serialize(allocation, jsonOptions));
-  text.AppendLine();
- }
-
  private static void AppendHumanReadableCalculationFlow(StringBuilder text)
  {
   AppendTitle(text, "BERECHNUNGSABLAUF");
@@ -151,8 +126,8 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "4. Rente und vereinfachte Rentensteuer",
-   "Vor dem jeweiligen Rentenalter wird keine gesetzliche Rente angesetzt. Ausgangspunkt sind je Person die heute bereits erworbene Monatsrente und die Hochrechnung bei weiteren Beiträgen bis 67, jeweils ohne künftige Rentenanpassungen. Die Differenz wird gleichmäßig auf die verbleibenden Beitragsjahre bis 67 verteilt. Berücksichtigt werden nur Beitragsjahre bis zum früheren Zeitpunkt aus Arbeitsende, Rentenbeginn oder Alter 67. Beginnt die Rente vor 67, wird die so ermittelte Monatsrente um 0,3 % je vorgezogenem Monat, höchstens um 14,4 %, dauerhaft vermindert. Anspruchsvoraussetzungen oder abschlagsfreie Sonderregelungen werden nicht automatisch geprüft. Die eingestellte Rentensteigerung wird ab dem aktuellen Kalenderjahr bis zum jeweiligen Simulationsjahr auf die ermittelte Rente angewendet. Bei aktivierter KVdR werden der im PensionService hinterlegte Krankenversicherungsanteil sowie der für das jeweilige Jahr fortgeschriebene Zusatzbeitrag und Pflege-Beitragssatz von der gesetzlichen Rente abgezogen. Bei deaktivierter KVdR wird freiwillige GKV/Pflege angenommen: Zusätzlich zur Belastung auf die gesetzliche Rente werden die im Modell erfassten sonstigen beitragspflichtigen Einnahmen bis zur Beitragsbemessungsgrenze berücksichtigt; bei niedrigen Gesamteinnahmen greift die Mindest-Bemessungsgrundlage. Der auf die gesetzliche Rente entfallende Krankenversicherungsanteil bleibt wegen des modellierten Rentenversicherungszuschusses auf derselben Nettobelastung wie bei KVdR; zusätzliche freiwillige Beiträge werden als GKV/Pflege-Bedarf der jeweiligen Person ausgewiesen. Die Fortschreibung verwendet dieselben GKV/Pflege-Annahmen wie die freiwillige Versicherung und berücksichtigt im Stressszenario die dort eingetragenen zusätzlichen Änderungen. Zusätzlich wird eine vereinfachte Einkommensteuer auf die Renteneinkünfte berechnet. Bei einem Ein-Personen-Haushalt wird Person 2 vollständig ignoriert und der Einkommensteuertarif ohne Splitting verwendet. Bei zwei Personen steuert die Einstellung zur gemeinsamen steuerlichen Veranlagung die Berechnung: Bei aktivierter gemeinsamer Veranlagung wird der Splittingtarif verwendet, andernfalls werden die tariflichen Steuern beider Personen getrennt berechnet. Der steuerpflichtige Rentenanteil richtet sich nach dem jeweiligen Rentenbeginn; der daraus ermittelte steuerfreie Rentenbetrag wird für die weitere Simulation festgehalten. Pro rentenbeziehender Person wird der im PensionService hinterlegte Werbungskosten-Pauschbetrag berücksichtigt; die dort berechneten Kranken- und Pflegebeiträge mindern ebenfalls die für diese Modellrechnung angesetzten steuerpflichtigen Renteneinkünfte. Die tarifliche Einkommensteuer einschließlich aktivierter Kirchensteuer und Solidaritätszuschlag verwendet den im PensionService hinterlegten Einkommensteuertarif 2026 als gesetzliche Basis. Für spätere Simulationsjahre wird keine zukünftige Steuerformel erfunden: Stattdessen wird der 2026er Tarif modellintern mit der eingetragenen Inflation fortgeschrieben. Technisch wird das nominale zu versteuernde Einkommen zunächst auf 2026-Euro zurückgerechnet, mit dem 2026er Tarif besteuert und der Steuerbetrag anschließend mit demselben Inflationsfaktor wieder auf das Simulationsjahr hochgerechnet. Damit wird im Modell eine vollständige Inflationsanpassung des Tarifs unterstellt; tatsächliche zukünftige Gesetzesänderungen können davon abweichen. Das Nettoeinkommen von Person 2 aus laufender Beschäftigungsphase wird bewusst nicht in die Rentensteuer zurückgerechnet; die Steuer während einer parallelen Beschäftigungsphase von Person 2 ist deshalb eine Näherung.",
-   "PensionService.CalculateAnnualPension / PensionService.CalculateJointPensionIncomeTax / PensionService.CalculateProjectedIncomeTaxIncludingSurcharges");
+   "Vor dem jeweiligen geplanten Rentenalter wird keine gesetzliche Rente angesetzt. Wenn Entgeltpunkte eingetragen sind, bildet die App die heutige Rentenanwartschaft aus Entgeltpunkten × aktuellem Rentenwert 2026. Ohne Entgeltpunkte bleibt die eingegebene heute bereits erworbene Monatsrente die Ausgangsbasis. Wenn ein RV-pflichtiges Jahresbrutto eingetragen ist, werden die zusätzlich bis zum Arbeitsende entstehenden Entgeltpunkte für jedes Beitragsjahr einzeln berechnet. Dabei werden Brutto, Durchschnittsentgelt und Beitragsbemessungsgrenze mit den jeweiligen Einstellungen fortgeschrieben. Ohne RV-Brutto wird die DRV-Hochrechnung bis 67 als Fallback verwendet und nur anteilig bis zum tatsächlichen Beitragsende berücksichtigt. Das Beitragsende ist der früheste Zeitpunkt aus Arbeitsende, geplantem Rentenbeginn und Alter 67. Beginnt die Rente vor 67, werden 0,3 % je vorgezogenem Monat, höchstens 14,4 %, dauerhaft abgezogen. Danach wird die eingestellte Rentensteigerung bis zum jeweiligen Simulationsjahr angewendet. KV/PV und die vereinfachte Rentensteuer werden anschließend wie im PensionService berechnet.",
+   "PensionService.CalculatePensionProjectionDiagnostics / PensionService.CalculateAnnualPension / PensionService.CalculateProjectedIncomeTaxIncludingSurcharges");
 
   AppendSection(
    text,
@@ -163,7 +138,7 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "6. Anlageerträge und Ausschüttungen",
-   "Das Startvermögen und die unter „Bestehende Depots“ eingetragenen Depotwerte gelten zum gewählten Simulationsstartjahr. Diese bestehenden Bestände werden unverändert als Anfangsbestände übernommen. Nur der nach Abzug von Welt-ETF, Dividenden-ETF und Dividenden-Aktien verbleibende Teil des Startvermögens wird gemäß der eingestellten Strategie auf Tages-/Festgeld, Welt-ETF, Dividenden-ETF und Dividenden-Aktien verteilt. Für neu zugeteilte Depotbeträge entspricht der steuerliche Einstandswert dem neu angelegten Betrag; für bestehende Depotbestände wird der Einstandswert aus Depotwert am Simulationsstart, Startjahr und bisheriger Durchschnittsrendite bis zum Simulationsstart geschätzt. Die Erträge werden aus den so gebildeten Beständen und den hinterlegten Sätzen berechnet. Ausschüttungen werden getrennt vom im Bestand verbleibenden Kurs-/Gesamtertrag behandelt.",
+   "Das Startvermögen und die unter „Bestehende Depots“ eingetragenen Depotwerte gelten zum Simulationsstart, der automatisch dem Arbeitsende von Person 1 entspricht. Diese bestehenden Bestände werden unverändert als Anfangsbestände übernommen. Nur der nach Abzug von Welt-ETF, Dividenden-ETF und Dividenden-Aktien verbleibende Teil des Startvermögens wird gemäß der eingestellten Strategie auf Tages-/Festgeld, Welt-ETF, Dividenden-ETF und Dividenden-Aktien verteilt. Für neu zugeteilte Depotbeträge entspricht der steuerliche Einstandswert dem neu angelegten Betrag; für bestehende Depotbestände wird der Einstandswert aus Depotwert am Simulationsstart, Startjahr und bisheriger Durchschnittsrendite bis zum Simulationsstart geschätzt. Die Erträge werden aus den so gebildeten Beständen und den hinterlegten Sätzen berechnet. Ausschüttungen werden getrennt vom im Bestand verbleibenden Kurs-/Gesamtertrag behandelt.",
    "ProjectionService.Calculate");
 
   AppendSection(
@@ -221,57 +196,319 @@ public static class CalculationDocumentationService
    "RecommendationService.Build");
  }
 
- private static void AppendDynamicSourceDocumentation(StringBuilder text)
+ private static void AppendDynamicHumanReadableCalculations(
+  StringBuilder text,
+  PlannerSettings settings,
+  StrategyAllocation allocation)
  {
-  AppendTitle(text, "BERECHNUNGSQUELLEN – VOLLSTÄNDIG AUTOMATISCH");
+  AppendTitle(text, "DYNAMISCHE RECHENWEGE – MENSCHLICH LESBAR");
 
-  string? projectRoot = FindProjectRoot();
+  text.AppendLine("Die folgenden Beispiele werden aus den aktuell eingegebenen Werten erzeugt.");
+  text.AppendLine("Sie zeigen die tatsächlich verwendeten Rechengrößen, ohne C#-Sourcecode anzuzeigen.");
+  text.AppendLine();
 
-  if (projectRoot == null)
-  {
-   text.AppendLine("Projektordner mit RockefellerFiction.csproj wurde nicht gefunden.");
-   return;
-  }
+  AppendPensionCalculation(text, settings, 1);
 
-  foreach (string fileName in CalculationSourceFiles)
-  {
-   text.AppendLine();
-   text.AppendLine(new string('=', 90));
-   text.AppendLine(fileName);
-   text.AppendLine(new string('=', 90));
+  if (settings.HouseholdPersonCount == 2)
+   AppendPensionCalculation(text, settings, 2);
 
-   string path = Path.Combine(projectRoot, fileName);
-
-   if (!File.Exists(path))
-   {
-    text.AppendLine("Datei nicht gefunden.");
-    continue;
-   }
-
-   text.AppendLine(File.ReadAllText(path));
-  }
+  AppendHealthInsuranceCalculation(text, settings, allocation);
+  AppendInflationCalculation(text, settings);
+  AppendInitialPortfolioCalculation(text, settings, allocation);
+  AppendReserveCalculation(text, settings);
+  AppendTaxCalculationExplanation(text, settings);
  }
 
- private static string? FindProjectRoot()
+ private static void AppendPensionCalculation(
+  StringBuilder text,
+  PlannerSettings settings,
+  int person)
  {
-  DirectoryInfo? directory =
-   new DirectoryInfo(Directory.GetCurrentDirectory());
+  bool person1 = person == 1;
 
-  for (int i = 0; i < 8 && directory != null; i++, directory = directory.Parent)
+  decimal currentGrossMonthly = person1
+   ? settings.Person1PensionGrossMonthly
+   : settings.Person2PensionGrossMonthly;
+  decimal projectedGrossMonthlyAt67 = person1
+   ? settings.Person1ProjectedPensionGrossMonthlyAt67
+   : settings.Person2ProjectedPensionGrossMonthlyAt67;
+  decimal currentPensionPoints = person1
+   ? settings.Person1CurrentPensionPoints
+   : settings.Person2CurrentPensionPoints;
+  decimal pensionableAnnualGross = person1
+   ? settings.Person1PensionableAnnualGross
+   : settings.Person2PensionableAnnualGross;
+  decimal pensionableAnnualGrossIncreaseRate = person1
+   ? settings.Person1PensionableAnnualGrossIncreaseRate
+   : settings.Person2PensionableAnnualGrossIncreaseRate;
+  int currentAge = person1
+   ? settings.Person1Age
+   : settings.Person2Age;
+  int workEndYear = person1
+   ? (settings.Person1WorkEndYear > 0 ? settings.Person1WorkEndYear : settings.PlanningYear)
+   : (settings.Person2WorkEndYear > 0 ? settings.Person2WorkEndYear : settings.PlanningYear);
+  int retirementAge = person1
+   ? settings.Person1RetirementAge
+   : settings.Person2RetirementAge;
+
+  PensionProjectionDiagnostics diagnostics =
+   PensionService.CalculatePensionProjectionDiagnostics(
+    currentGrossMonthly,
+    projectedGrossMonthlyAt67,
+    currentPensionPoints,
+    pensionableAnnualGross,
+    pensionableAnnualGrossIncreaseRate,
+    settings.PensionAverageAnnualEarningsIncreaseRate,
+    currentAge,
+    workEndYear,
+    retirementAge);
+
+  text.AppendLine($"Gesetzliche Rente Person {person}");
+  text.AppendLine(new string('-', $"Gesetzliche Rente Person {person}".Length));
+  text.AppendLine($"Ausgangsbasis = {diagnostics.CurrentPensionSource}");
+  text.AppendLine($"Zukünftige Anwartschaft = {diagnostics.FutureAccrualSource}");
+  text.AppendLine();
+
+  if (diagnostics.EnteredCurrentPensionPoints > 0m)
   {
-   if (File.Exists(Path.Combine(directory.FullName, "RockefellerFiction.csproj")))
-    return directory.FullName;
+   text.AppendLine(
+    $"Heutige Rentenanwartschaft = {diagnostics.EnteredCurrentPensionPoints:N4} Entgeltpunkte × 42,52 € Rentenwert = {diagnostics.CurrentPensionMonthlyUsed:N2} € pro Monat.");
+  }
+  else
+  {
+   text.AppendLine(
+    $"Heutige Rentenanwartschaft = eingegebener Wert {diagnostics.CurrentPensionMonthlyUsed:N2} € pro Monat.");
   }
 
-  directory = new DirectoryInfo(AppContext.BaseDirectory);
+  text.AppendLine(
+   $"Arbeitsende-Alter rechnerisch = {diagnostics.WorkEndAge}; geplantes Rentenalter = {retirementAge}; Beitragsende-Alter = {diagnostics.ContributionEndAge}.");
+  text.AppendLine(
+   $"Zusätzliche Beitragsjahre = {diagnostics.AdditionalContributionYears} von maximal {diagnostics.YearsToRegularRetirement} Jahren bis 67.");
 
-  for (int i = 0; i < 8 && directory != null; i++, directory = directory.Parent)
+  if (diagnostics.FutureAccrualSource == "RV-pflichtiges Jahresbrutto")
   {
-   if (File.Exists(Path.Combine(directory.FullName, "RockefellerFiction.csproj")))
-    return directory.FullName;
+   text.AppendLine(
+    $"Erstes Beitragsjahr: beitragspflichtiges Brutto {diagnostics.PensionableAnnualGrossUsed:N2} € / Durchschnittsentgelt {diagnostics.AverageAnnualEarningsFirstYear:N2} € = {diagnostics.AnnualPensionPoints:N6} Entgeltpunkte.");
+   text.AppendLine(
+    $"Letztes berücksichtigtes Beitragsjahr: beitragspflichtiges Brutto {diagnostics.PensionableAnnualGrossLastYear:N2} € / Durchschnittsentgelt {diagnostics.AverageAnnualEarningsLastYear:N2} € = {diagnostics.AnnualPensionPointsLastYear:N6} Entgeltpunkte.");
+   text.AppendLine(
+    $"Zusätzliche Entgeltpunkte gesamt = {diagnostics.AdditionalPensionPoints:N6}.");
+   text.AppendLine(
+    $"Zusätzliche Monatsrente = {diagnostics.AdditionalPensionPoints:N6} × 42,52 € = {diagnostics.AdditionalPensionMonthly:N2} €.");
+  }
+  else if (diagnostics.FutureAccrualSource == "DRV-Hochrechnung bis 67")
+  {
+   text.AppendLine(
+    $"DRV-Fallback: von {diagnostics.EnteredCurrentPensionMonthly:N2} € heute auf {diagnostics.EnteredProjectedPensionMonthlyAt67:N2} € bei Beiträgen bis 67.");
+   text.AppendLine(
+    $"Davon werden nur {diagnostics.AdditionalContributionYears} der {diagnostics.YearsToRegularRetirement} möglichen Beitragsjahre berücksichtigt.");
+   text.AppendLine(
+    $"Zusätzliche Monatsrente bis zum Beitragsende = {diagnostics.AdditionalPensionMonthly:N2} €.");
+  }
+  else
+  {
+   text.AppendLine("Es werden keine zusätzlichen Rentenanwartschaften bis zum Beitragsende angesetzt.");
   }
 
-  return null;
+  text.AppendLine(
+   $"Monatsrente vor Rentensteigerung und vor Abschlag = {diagnostics.MonthlyAtRetirementBeforePensionIncrease:N2} €.");
+  text.AppendLine(
+   $"Faktor wegen geplantem Rentenbeginn = {diagnostics.EarlyRetirementFactor:P2}.");
+  text.AppendLine(
+   $"Monatsrente nach Abschlagsfaktor, noch ohne spätere Rentensteigerungen = {diagnostics.MonthlyAtRetirementAfterEarlyRetirementFactor:N2} €.");
+  text.AppendLine();
+  AppendReferenceSources(text, "Rente");
+ }
+
+ private static void AppendHealthInsuranceCalculation(
+  StringBuilder text,
+  PlannerSettings settings,
+  StrategyAllocation allocation)
+ {
+  AppendSectionTitle(text, "Freiwillige GKV/Pflege zum Simulationsstart");
+
+  HealthInsuranceProjectionParameters parameters =
+   PensionService.CalculateHealthInsuranceProjectionParameters(
+    settings,
+    settings.PlanningYear,
+    false);
+
+  HealthInsurancePreview preview =
+   ProjectionService.CalculateInitialVoluntaryHealthPreview(
+    settings,
+    allocation);
+
+  text.AppendLine(
+   $"Mindest-Bemessungsgrundlage im Jahr {settings.PlanningYear} = {parameters.MinimumMonthlyIncome:N2} € pro Monat.");
+  text.AppendLine(
+   $"Beitragsbemessungsgrenze im Jahr {settings.PlanningYear} = {parameters.MaximumMonthlyIncome:N2} € pro Monat.");
+  text.AppendLine(
+   $"Zusatzbeitrag im Jahr {settings.PlanningYear} = {parameters.AdditionalRate:P2}; Pflegebeitrag = {parameters.CareRate:P2}.");
+  text.AppendLine(
+   $"Berechneter freiwilliger GKV/Pflege-Beitrag Person 1 zum Simulationsstart = {preview.Person1Monthly:N2} € pro Monat.");
+
+  if (settings.HouseholdPersonCount == 2)
+  {
+   text.AppendLine(
+    $"Berechneter freiwilliger GKV/Pflege-Beitrag Person 2 zum Simulationsstart = {preview.Person2Monthly:N2} € pro Monat.");
+  }
+
+  text.AppendLine(
+   "Grundregel vor Rentenbeginn: monatliche Bemessungsgrundlage = Kapitalerträge pro Person, mindestens Mindest-Bemessungsgrundlage und höchstens Beitragsbemessungsgrenze.");
+  text.AppendLine(
+   $"Jahresbeitrag = monatliche Bemessungsgrundlage × ({settings.VoluntaryHealthInsuranceRate:P2} GKV + Zusatzbeitrag + Pflegebeitrag) × 12.");
+  text.AppendLine();
+  AppendReferenceSources(text, "GKV/Pflege");
+ }
+
+ private static void AppendInflationCalculation(
+  StringBuilder text,
+  PlannerSettings settings)
+ {
+  AppendSectionTitle(text, "Lebenshaltung und Inflation");
+
+  int yearsToPlanning = Math.Max(0, settings.PlanningYear - DateTime.Today.Year);
+  decimal inflationFactor = Pow(
+   1m + settings.InflationRate,
+   yearsToPlanning);
+  decimal annualLivingToday = settings.MonthlyLivingCosts * 12m;
+  decimal annualLivingAtPlanning = annualLivingToday * inflationFactor;
+
+  text.AppendLine(
+   $"Heutige Lebenshaltung pro Jahr = {settings.MonthlyLivingCosts:N2} € × 12 = {annualLivingToday:N2} €.");
+  text.AppendLine(
+   $"Inflationsfaktor bis {settings.PlanningYear} = (1 + {settings.InflationRate:P2})^{yearsToPlanning} = {inflationFactor:N6}.");
+  text.AppendLine(
+   $"Lebenshaltung im Simulationsstartjahr = {annualLivingToday:N2} € × {inflationFactor:N6} = {annualLivingAtPlanning:N2} €.");
+  text.AppendLine();
+  AppendReferenceSources(text, "Inflation");
+ }
+
+ private static void AppendInitialPortfolioCalculation(
+  StringBuilder text,
+  PlannerSettings settings,
+  StrategyAllocation allocation)
+ {
+  AppendSectionTitle(text, "Startvermögen und Anlageaufteilung");
+
+  decimal existingDepotTotal =
+   settings.WorldEtfCurrentValue +
+   settings.DividendEtfCurrentValue +
+   settings.DividendStocksCurrentValue;
+  decimal strategyCapital =
+   Math.Max(0m, settings.StartCapital - existingDepotTotal);
+
+  decimal cash = strategyCapital * allocation.Cash;
+  decimal worldNew = strategyCapital * allocation.WorldEtf;
+  decimal dividendEtfNew = strategyCapital * allocation.DividendEtf;
+  decimal dividendStocksNew = strategyCapital * allocation.DividendStocks;
+
+  text.AppendLine(
+   $"Bestehende Depots = {settings.WorldEtfCurrentValue:N2} € Welt-ETF + {settings.DividendEtfCurrentValue:N2} € Dividenden-ETF + {settings.DividendStocksCurrentValue:N2} € Dividenden-Aktien = {existingDepotTotal:N2} €.");
+  text.AppendLine(
+   $"Neu nach Strategie aufzuteilendes Kapital = {settings.StartCapital:N2} € Startvermögen - {existingDepotTotal:N2} € bestehende Depots = {strategyCapital:N2} €.");
+  text.AppendLine(
+   $"Tages-/Festgeld neu = {strategyCapital:N2} € × {allocation.Cash:P2} = {cash:N2} €.");
+  text.AppendLine(
+   $"Welt-ETF neu = {strategyCapital:N2} € × {allocation.WorldEtf:P2} = {worldNew:N2} €.");
+  text.AppendLine(
+   $"Dividenden-ETF neu = {strategyCapital:N2} € × {allocation.DividendEtf:P2} = {dividendEtfNew:N2} €.");
+  text.AppendLine(
+   $"Dividenden-Aktien neu = {strategyCapital:N2} € × {allocation.DividendStocks:P2} = {dividendStocksNew:N2} €.");
+  text.AppendLine();
+  AppendReferenceSources(text, "Startvermögen und Anlageaufteilung");
+ }
+
+ private static void AppendReserveCalculation(
+  StringBuilder text,
+  PlannerSettings settings)
+ {
+  AppendSectionTitle(text, "Reserve und Rücklagen zum Simulationsstart");
+
+  int yearsToPlanning = Math.Max(0, settings.PlanningYear - DateTime.Today.Year);
+  decimal inflationFactor = Pow(
+   1m + settings.InflationRate,
+   yearsToPlanning);
+
+  decimal living =
+   settings.MonthlyLivingCosts * 12m * inflationFactor;
+  decimal houseReserve =
+   settings.HouseTotalValue *
+   settings.HouseBuildingShare *
+   settings.HouseReserveRate *
+   inflationFactor;
+  decimal carReserve =
+   (settings.CarReplacementValue / Math.Max(1, settings.CarReplacementYears)) *
+   inflationFactor;
+  decimal healthReserve =
+   settings.HealthReserveTarget * inflationFactor;
+  decimal travelReserve =
+   settings.TravelReserveTarget * inflationFactor;
+  decimal otherReserve =
+   settings.OtherReserveTarget * inflationFactor;
+
+  text.AppendLine(
+   $"Sichere Reserve aus Lebenshaltung = Jahresbedarf × {settings.ReserveYears:N2} Reservejahre.");
+  text.AppendLine(
+   $"Haus-Rücklage = {settings.HouseTotalValue:N2} € × {settings.HouseBuildingShare:P2} Gebäudeanteil × {settings.HouseReserveRate:P2} × Inflationsfaktor = {houseReserve:N2} € pro Jahr.");
+  text.AppendLine(
+   $"Auto-Rücklage = {settings.CarReplacementValue:N2} € / {Math.Max(1, settings.CarReplacementYears)} Jahre × Inflationsfaktor = {carReserve:N2} € pro Jahr.");
+  text.AppendLine(
+   $"Gesundheit/Zahnersatz Zielwert zum Simulationsstart = {healthReserve:N2} €.");
+  text.AppendLine(
+   $"Reisen/größere Wünsche Zielwert zum Simulationsstart = {travelReserve:N2} €.");
+  text.AppendLine(
+   $"Sonstiges/Unvorhergesehenes Zielwert zum Simulationsstart = {otherReserve:N2} €.");
+  text.AppendLine(
+   "Der endgültige Reserve-Sollwert verwendet im jeweiligen Simulationsjahr den tatsächlichen Jahresbedarf einschließlich der dort berechneten freiwilligen GKV/Pflege.");
+  text.AppendLine();
+  AppendReferenceSources(text, "Reserve und Rücklagen");
+ }
+
+ private static void AppendTaxCalculationExplanation(
+  StringBuilder text,
+  PlannerSettings settings)
+ {
+  AppendSectionTitle(text, "Kapitalertragsteuer und Vorabpauschale");
+
+  text.AppendLine(
+   "Aktienfonds: Für Ausschüttungen, Vorabpauschalen und realisierte ETF-Gewinne werden im Steuerteil 70 % als steuerpflichtiger Anteil angesetzt.");
+  text.AppendLine(
+   $"Sparer-Pauschbetrag Haushalt = {settings.CapitalGainsAllowance:N2} €; er wird nach der Verlustverrechnung abgezogen.");
+  text.AppendLine(
+   "Ohne Kirchensteuer: Kapitalertragsteuer = 25 % des verbleibenden steuerpflichtigen Betrags; darauf kommen 5,5 % Solidaritätszuschlag.");
+  if (settings.ChurchTaxEnabled)
+  {
+   text.AppendLine(
+    $"Kirchensteuer ist aktiviert; verwendeter Kirchensteuersatz = {settings.ChurchTaxRate:P2}. Die Kapitalertragsteuer wird nach der im TaxService verwendeten Kirchensteuerformel berechnet.");
+  }
+  else
+  {
+   text.AppendLine("Kirchensteuer ist deaktiviert.");
+  }
+
+  text.AppendLine(
+   "Zusätzlich wird jedes Jahr eine Günstigerprüfung durchgeführt: Die pauschale Kapitalertragsteuer wird mit der zusätzlichen tariflichen Einkommensteuer verglichen; verwendet wird die niedrigere Belastung.");
+  text.AppendLine(
+   $"Vorabpauschale: Basisertrag = ETF-Wert zu Jahresbeginn × {settings.AdvanceLumpSumBaseRate:P2} Basiszins × 70 %. Dieser Wert wird auf den tatsächlichen Wertzuwachs einschließlich Ausschüttungen begrenzt; Ausschüttungen werden anschließend abgezogen.");
+  text.AppendLine();
+  AppendReferenceSources(text, "Kapitalertragsteuer");
+ }
+
+ private static void AppendSectionTitle(
+  StringBuilder text,
+  string title)
+ {
+  text.AppendLine(title);
+  text.AppendLine(new string('-', title.Length));
+ }
+
+ private static decimal Pow(decimal value, int exponent)
+ {
+  decimal result = 1m;
+  for (int i = 0; i < exponent; i++)
+   result *= value;
+  return result;
  }
 
  private static void AppendTitle(StringBuilder text, string title)
@@ -291,7 +528,175 @@ public static class CalculationDocumentationService
   text.AppendLine(new string('-', title.Length));
   text.AppendLine(explanation);
   text.AppendLine();
-  text.AppendLine("Quelle: " + source);
+  text.AppendLine("Interne Berechnungsquelle: " + source);
   text.AppendLine();
+  AppendReferenceSources(text, title);
+ }
+
+ private static void AppendReferenceSources(
+  StringBuilder text,
+  string topic)
+ {
+  text.AppendLine("Quellen / fachliche Grundlage:");
+
+  switch (topic)
+  {
+   case "2. Inflation und Lebenshaltung":
+   case "Inflation":
+    AppendExternalSource(
+     text,
+     "Statistisches Bundesamt – Verbraucherpreisindex und Inflationsrate",
+     "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html",
+     "Stand der Seite: 12.08.2026; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Statistisches Bundesamt – Verbraucherpreisindex: Gesamtindex und 12 Abteilungen",
+     "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/Tabellen/Verbraucherpreise-12Kategorien.html",
+     "Stand: 12.08.2026; URL geprüft am 24.08.2026");
+    text.AppendLine("Hinweis: Die in der App verwendete zukünftige Inflationsrate ist eine vom Benutzer gesetzte Modellannahme, keine gesetzlich vorgegebene Prognose.");
+    break;
+
+   case "3. Freiwillige GKV/Pflege nach Arbeitsende und vor Rentenbeginn":
+   case "GKV/Pflege":
+    AppendExternalSource(
+     text,
+     "Bundesministerium für Gesundheit – Beiträge der gesetzlichen Krankenversicherung (GKV)",
+     "https://www.bundesgesundheitsministerium.de/beitraege/seite",
+     "Werte 2026; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Bundesministerium für Gesundheit – Finanzierung der Pflegeversicherung",
+     "https://www.bundesgesundheitsministerium.de/themen/pflege/online-ratgeber-pflege/die-pflegeversicherung/finanzierung",
+     "Werte 2026; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Gesetze im Internet – § 240 SGB V, beitragspflichtige Einnahmen freiwilliger Mitglieder",
+     "https://www.gesetze-im-internet.de/sgb_5/__240.html",
+     "geltende Fassung; URL geprüft am 24.08.2026");
+    break;
+
+   case "4. Rente und vereinfachte Rentensteuer":
+   case "Rente":
+    AppendExternalSource(
+     text,
+     "Deutsche Rentenversicherung – Entgeltpunkte",
+     "https://www.deutsche-rentenversicherung.de/SharedDocs/Glossareintraege/DE/E/entgeltpunkte.html",
+     "2026-Werte enthalten; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Deutsche Rentenversicherung – Altersrente für langjährig Versicherte",
+     "https://www.deutsche-rentenversicherung.de/DRV/DE/Rente/Allgemeine-Informationen/Rentenarten-und-Leistungen/Altersrente-fuer-langjaehrig-Versicherte/Altersrente_fuer_langjaehrig_Versicherte.html?https=1",
+     "URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Bundesministerium der Finanzen – Rentenbesteuerung",
+     "https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerliche_Themengebiete/Rentenbesteuerung/2021-04-28-Rentenbesteuerung-Eine-Frage-der-Gerechtigkeit.html",
+     "Stand: 17.06.2026; URL geprüft am 24.08.2026");
+    break;
+
+   case "8. Kapitalertragsteuer":
+   case "Kapitalertragsteuer":
+    AppendExternalSource(
+     text,
+     "Gesetze im Internet – § 32d EStG, gesonderter Steuertarif und Günstigerprüfung",
+     "https://www.gesetze-im-internet.de/estg/__32d.html",
+     "geltende Fassung; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Gesetze im Internet – § 18 InvStG, Vorabpauschale",
+     "https://www.gesetze-im-internet.de/invstg_2018/__18.html",
+     "geltende Fassung; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Gesetze im Internet – § 20 InvStG, Teilfreistellung",
+     "https://www.gesetze-im-internet.de/invstg_2018/__20.html",
+     "geltende Fassung; URL geprüft am 24.08.2026");
+    AppendExternalSource(
+     text,
+     "Bundesministerium der Finanzen – Basiszins zur Berechnung der Vorabpauschale 2026",
+     "https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Investmentsteuer/2026-01-13-basiszins-berechnung-vorabpauschale.pdf?__blob=publicationFile&v=1",
+     "Datum: 13.01.2026; Basiszins 2026: 3,20 %; URL geprüft am 24.08.2026");
+    break;
+
+   case "5. Reserve und Rücklagen":
+   case "Reserve und Rücklagen":
+    AppendModelSource(text, "ProjectionService.cs", "Reservehöhe und Rücklagenlogik sind Modellannahmen der App.");
+    AppendExternalSource(
+     text,
+     "Statistisches Bundesamt – Verbraucherpreisindex und Inflationsrate",
+     "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html",
+     "Stand der Seite: 12.08.2026; URL geprüft am 24.08.2026");
+    break;
+
+   case "1. Planungszeitraum":
+    AppendModelSource(text, "ProjectionService.Calculate", "Planungsbeginn und Planungsende sind Modellregeln der App; dafür gibt es keine gesetzliche Berechnungsvorgabe.");
+    break;
+
+   case "6. Anlageerträge und Ausschüttungen":
+   case "Startvermögen und Anlageaufteilung":
+    AppendModelSource(text, "ProjectionService.Calculate", "Anlageaufteilung, Renditen und Ausschüttungsannahmen sind frei gewählte Modellannahmen der App.");
+    break;
+
+   case "7. Stressszenario":
+    AppendModelSource(text, "ProjectionService.Calculate", "Crash-Stärke, Crash-Jahr und Ersatz der Jahresrendite sind bewusst definierte Stress-Modellannahmen der App.");
+    break;
+
+   case "9. Einmalige Einnahmen, Ausgaben und Hausverkauf":
+    AppendModelSource(text, "ProjectionService.Calculate / ProjectionService.SumCashFlows", "Zeitpunkt und Inflationsfortschreibung einmaliger Zahlungen sind Modellregeln der App.");
+    break;
+
+   case "10. Finanzierung des Jahresbedarfs":
+    AppendModelSource(text, "ProjectionService.Calculate", "Die Reihenfolge Rente → Arbeitseinkommen P2 → sonstige Einnahmen → Ausschüttungen → Cash → Verkäufe ist eine Modellentscheidung der App.");
+    break;
+
+   case "11. Reserve wieder auffüllen":
+    AppendModelSource(text, "ProjectionService.Calculate", "Die automatische Reserveauffüllung und die Schutzregel für negative Aktienjahre sind Modellentscheidungen der App.");
+    break;
+
+   case "12. Ampelstatus":
+    AppendModelSource(text, "ProjectionService.Calculate / ProjectionResult.OverallStatus", "Die Schwellen für Grün, Gelb und Rot sind programminterne Bewertungsregeln.");
+    break;
+
+   case "13. Mindest-Startvermögen":
+    AppendModelSource(text, "ProjectionService.EstimateMinimumStartCapital", "Das Mindest-Startvermögen wird numerisch über die konkrete App-Simulation angenähert; hierfür gibt es keine gesetzliche Formel.");
+    break;
+
+   case "14. Strategieempfehlung":
+    AppendModelSource(text, "StrategyService.Recommend", "Die Auswahl der renditestärksten bestandenen Default-Strategie ist eine programminterne Entscheidungsregel.");
+    break;
+
+   case "15. Handlungsempfehlung":
+    AppendModelSource(text, "RecommendationService.Build", "Die ausgegebenen Hinweise und Prioritäten sind programminterne Entscheidungsregeln.");
+    break;
+
+   default:
+    AppendModelSource(text, "RockefellerFiction", "Für diesen Abschnitt ist keine eigene externe gesetzliche Berechnungsgrundlage hinterlegt.");
+    break;
+  }
+
+  text.AppendLine();
+ }
+
+ private static void AppendExternalSource(
+  StringBuilder text,
+  string name,
+  string url,
+  string stand)
+ {
+  text.AppendLine("- " + name);
+  text.AppendLine("  URL: " + url);
+  text.AppendLine("  Stand: " + stand);
+ }
+
+ private static void AppendModelSource(
+  StringBuilder text,
+  string source,
+  string explanation)
+ {
+  text.AppendLine("- Modellannahme / interne Berechnungsregel");
+  text.AppendLine("  Quelle: " + source);
+  text.AppendLine("  URL: keine – lokale Programmlogik");
+  text.AppendLine("  Stand: 24.08.2026");
+  text.AppendLine("  Hinweis: " + explanation);
  }
 }
