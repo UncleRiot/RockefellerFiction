@@ -37,35 +37,58 @@
                MaxWidth="850"
                Margin="0,8,16,0"/>
    </StackPanel>
-   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-    <Button Content="Berechnen" Width="100" Padding="10,6" Margin="0,0,8,0" Click="Calculate_Click"/>
-    <Button Content="Speichern" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Save_Click"/>
-    <Button Content="Export" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Export_Click"/>
-    <Button Content="Import" Width="100" Padding="10,6" Margin="0,0,8,0" Style="{StaticResource SecondaryButton}" Click="Import_Click"/>
-    <StackPanel>
-     <Button Content="About"
-             Width="100"
-             Padding="10,6"
-             Style="{StaticResource SecondaryButton}"
-             Click="About_Click"/>
-     <Button Width="100"
-             Margin="0,8,0,0"
-             Padding="6"
-             Style="{StaticResource SecondaryButton}"
-             Click="Wizard_Click"
-             ToolTip="Neu hier? Mit dem Wizard Schritt für Schritt zur ersten sinnvollen Simulation.">
-      <StackPanel>
+   <StackPanel Grid.Column="1"
+               Orientation="Horizontal"
+               VerticalAlignment="Top">
+    <Button Content="Berechnen"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Margin="0,0,8,0"
+            Click="Calculate_Click"/>
+    <Button Content="Speichern"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Margin="0,0,8,0"
+            Style="{StaticResource SecondaryButton}"
+            Click="Save_Click"/>
+    <Button Content="Export"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Margin="0,0,8,0"
+            Style="{StaticResource SecondaryButton}"
+            Click="Export_Click"/>
+    <Button Content="Import"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Margin="0,0,8,0"
+            Style="{StaticResource SecondaryButton}"
+            Click="Import_Click"/>
+    <Button Content="About"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Margin="0,0,8,0"
+            Style="{StaticResource SecondaryButton}"
+            Click="About_Click"/>
+    <Button Content="Wizard"
+            Width="100"
+            Height="38"
+            Padding="10,6"
+            Style="{StaticResource SecondaryButton}"
+            Click="Wizard_Click">
+     <Button.ToolTip>
+      <ToolTip>
        <Image Source="Resources/Wizard.png"
-              Width="52"
-              Height="52"
+              Width="96"
+              Height="96"
               Stretch="Uniform"/>
-       <TextBlock Text="Wizard"
-                  HorizontalAlignment="Center"
-                  Margin="0,4,0,0"
-                  FontWeight="SemiBold"/>
-      </StackPanel>
-     </Button>
-    </StackPanel>
+      </ToolTip>
+     </Button.ToolTip>
+    </Button>
    </StackPanel>
   </Grid>
 
@@ -108,14 +131,24 @@
 
    <TabItem Header="Berechnungsgrundlagen">
     <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
-     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                   HorizontalScrollBarVisibility="Auto">
-      <TextBlock x:Name="CalculationDocumentationText"
-                 TextWrapping="Wrap"
-                 FontFamily="Consolas"
-                 FontSize="13"
-                 Foreground="{StaticResource TextBrush}"/>
-     </ScrollViewer>
+     <TextBox x:Name="CalculationDocumentationText"
+              Width="Auto"
+              Height="Auto"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              HorizontalContentAlignment="Left"
+              VerticalContentAlignment="Top"
+              IsReadOnly="True"
+              AcceptsReturn="True"
+              AcceptsTab="True"
+              TextWrapping="Wrap"
+              VerticalScrollBarVisibility="Auto"
+              HorizontalScrollBarVisibility="Auto"
+              FontFamily="Consolas"
+              FontSize="13"
+              Foreground="{StaticResource TextBrush}"
+              Background="Transparent"
+              BorderThickness="0"/>
     </Border>
    </TabItem>
 

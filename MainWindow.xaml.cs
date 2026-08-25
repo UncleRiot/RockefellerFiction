@@ -12,7 +12,10 @@ public partial class MainWindow : Window
 {
  private readonly HelpPopupController _help = new();
  private readonly Dictionary<string, FrameworkElement> _inputs = new();
+ private readonly Dictionary<string, int> _fieldNumbersByKey = new();
+ private readonly Dictionary<string, TabItem> _fieldTabsByKey = new();
  private StackPanel? _currentInputPanel;
+ private TabItem? _currentInputTab;
  private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
  private int _fieldNumber;
  private PlannerSettings _settings;
@@ -22,6 +25,11 @@ public partial class MainWindow : Window
  private StrategyAllocation _allocation;
  private bool _hasUnsavedChanges;
  private bool _isUpdatingStrategyAllocation;
+ private TextBlock? _existingDepotsStartCapitalText;
+ private TextBlock? _unassignedStartCapitalText;
+ private TextBlock? _strategyStartCapitalText;
+ private TextBlock? _houseMaintenanceAnnualText;
+ private readonly Dictionary<string, TextBlock> _allocationPercentTexts = new();
 
  public MainWindow()
  {
@@ -43,17 +51,26 @@ public partial class MainWindow : Window
  private void BuildInputForm()
  {
   _fieldNumber = 0;
+  _fieldNumbersByKey.Clear();
+  _fieldTabsByKey.Clear();
 
   if (_settings.Person1WorkEndYear <= 0)
    _settings.Person1WorkEndYear = _settings.PlanningYear;
 
   _settings.PlanningYear = _settings.Person1WorkEndYear;
 
-  AddSection("1. Startvermögen");
-  AddMoney("StartCapital", "Verfügbares Startvermögen", _settings.StartCapital);
+  AddSection("1. Basisdaten & Planung");
+  if (_currentInputPanel == null)
+   throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-        AddSection("2. Planung");
-  AddChoice("HouseholdPersonCount", "Haushalt",
+  _currentInputPanel.Children.Add(new TextBlock
+  {
+   Text = "Hinweis: Person 1 muss die ältere Person sein, Person 2 die jüngere Person. Diese Zuordnung ist für die Berechnung zwingend erforderlich.",
+   TextWrapping = TextWrapping.Wrap,
+   Foreground = (Brush)FindResource("WarningBrush"),
+   Margin = new Thickness(20, 10, 20, 10)
+  });
+  AddChoice("HouseholdPersonCount", "Wie viele Personen im Haushalt (max. 2)",
    _settings.HouseholdPersonCount == 1 ? "1 Person" : "2 Personen",
    ["1 Person", "2 Personen"]);
   AddInt("Person1CurrentAge", "Aktuelles Alter Person 1", _settings.Person1Age);
@@ -68,18 +85,33 @@ public partial class MainWindow : Window
   AddInt("Person2RetirementAge", "Geplanter Beginn gesetzliche Altersrente Person 2", _settings.Person2RetirementAge);
   AddInt("Person1EndAge", "Lebenserwartung Person 1 [Standardwert]", _settings.Person1EndAge);
   AddInt("Person2EndAge", "Lebenserwartung Person 2 [Standardwert]", _settings.Person2EndAge);
-
-  AddSection("3. Steuern");
+  AddMoney("MonthlyLivingCosts", "Monatliche Ausgaben für das Leben", _settings.MonthlyLivingCosts);
+  AddPercent("InflationRate", "Inflation pro Jahr [Standardwert]", _settings.InflationRate);
+  AddPercent("IncomeTaxTariffAnnualIncreaseRate", "Steuertarif / Grundfreibetrag Steigerung p.a. [Standardwert]", _settings.IncomeTaxTariffAnnualIncreaseRate);
   AddMoney("CapitalGainsAllowance", "Sparer-Pauschbetrag Haushalt [Standardwert]", _settings.CapitalGainsAllowance);
   AddBool("JointTaxation", "Gemeinsame steuerliche Veranlagung [Standardwert]", _settings.JointTaxation);
   AddBool("ChurchTaxEnabled", "Kirchensteuer berücksichtigen", _settings.ChurchTaxEnabled);
-  AddPercent("ChurchTaxRate", "Kirchensteuersatz", _settings.ChurchTaxRate);
-  AddPercent("AdvanceLumpSumBaseRate", "Basiszins Vorabpauschale [Standardwert]", _settings.AdvanceLumpSumBaseRate);
+  AddPercent("ChurchTaxRate", "Kirchensteuersatz (optional)", _settings.ChurchTaxRate);
 
-  AddSection("4. Lebensstandard & Inflation");
-  AddMoney("MonthlyLivingCosts", "Monatliche Ausgaben für das Leben", _settings.MonthlyLivingCosts);
-  AddPercent("InflationRate", "Inflation pro Jahr [Standardwert]", _settings.InflationRate);
+  AddSection("2. Gesetzliche Rente");
+  AddMoney("Person1PensionGrossMonthly", "Rente Person 1 – heute bereits erworben (brutto/Monat)", _settings.Person1PensionGrossMonthly);
+  AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – heute bereits erworben (brutto/Monat)", _settings.Person2PensionGrossMonthly);
+  AddMoney("Person1ProjectedPensionGrossMonthlyAt67", "Rente Person 1 – hochgerechnet mit 67 brutto/Monat (optional)", _settings.Person1ProjectedPensionGrossMonthlyAt67);
+  AddMoney("Person2ProjectedPensionGrossMonthlyAt67", "Rente Person 2 – hochgerechnet mit 67 brutto/Monat (optional)", _settings.Person2ProjectedPensionGrossMonthlyAt67);
+  AddInt("Person1CurrentInsuranceYears", "Bisherige Versicherungsjahre Person 1", _settings.Person1CurrentInsuranceYears);
+  AddInt("Person2CurrentInsuranceYears", "Bisherige Versicherungsjahre Person 2", _settings.Person2CurrentInsuranceYears);
+  AddDecimal("Person1CurrentPensionPoints", "Entgeltpunkte Person 1 (optional)", _settings.Person1CurrentPensionPoints);
+  AddDecimal("Person2CurrentPensionPoints", "Entgeltpunkte Person 2 (optional)", _settings.Person2CurrentPensionPoints);
+  AddMoney("Person1PensionableAnnualGross", "Brutto Jahresgehalt Person 1 (optional)", _settings.Person1PensionableAnnualGross);
+  AddMoney("Person2PensionableAnnualGross", "Brutto Jahresgehalt Person 2 (optional)", _settings.Person2PensionableAnnualGross);
+  AddPercent("Person1PensionableAnnualGrossIncreaseRate", "Brutto Jahresgehalt Person 1 Steigerung p.a. (optional)", _settings.Person1PensionableAnnualGrossIncreaseRate);
+  AddPercent("Person2PensionableAnnualGrossIncreaseRate", "Brutto Jahresgehalt Person 2 Steigerung p.a. (optional)", _settings.Person2PensionableAnnualGrossIncreaseRate);
+  AddPercent("PensionAverageAnnualEarningsIncreaseRate", "Entwicklung der durchschnittlichen Löhne p.a. (optional) [Standardwert]", _settings.PensionAverageAnnualEarningsIncreaseRate);
   AddPercent("PensionIncreaseRate", "Konservative Rentensteigerung pro Jahr [Standardwert]", _settings.PensionIncreaseRate);
+
+  AddSection("3. Kranken- & Pflegeversicherung");
+  AddBool("KvdrPerson1", "KVdR für Person 1 annehmen (optional) [Standardwert]", _settings.KvdrPerson1);
+  AddBool("KvdrPerson2", "KVdR für Person 2 annehmen (optional) [Standardwert]", _settings.KvdrPerson2);
   AddMoney("VoluntaryHealthInsuranceMinimumMonthlyIncome", "GKV/Pflege Mindest-Bemessungsgrundlage pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMinimumMonthlyIncome);
   AddMoney("VoluntaryHealthInsuranceMaximumMonthlyIncome", "GKV/Pflege Beitragsbemessungsgrenze pro Monat [Standardwert]", _settings.VoluntaryHealthInsuranceMaximumMonthlyIncome);
   AddPercent("VoluntaryHealthInsuranceRate", "GKV Beitragssatz ohne Krankengeld [Standardwert]", _settings.VoluntaryHealthInsuranceRate);
@@ -91,63 +123,115 @@ public partial class MainWindow : Window
   AddPercent("CareInsuranceRateAnnualChange", "Pflegeversicherung Änderung p.a. in Prozentpunkten [Standardwert]", _settings.CareInsuranceRateAnnualChange);
   AddReadOnlyMoney("CalculatedHealthPerson1Monthly", "Berechnete GKV/Pflege Person 1 pro Monat", 0m);
   AddReadOnlyMoney("CalculatedHealthPerson2Monthly", "Berechnete GKV/Pflege Person 2 pro Monat", 0m);
-  AddSection("5. Gesetzliche Rente – Werte aus der Renteninformation");
-  AddMoney("Person1PensionGrossMonthly", "Rente Person 1 – heute bereits erworben (brutto/Monat)", _settings.Person1PensionGrossMonthly);
-  AddMoney("Person2PensionGrossMonthly", "Rente Person 2 – heute bereits erworben (brutto/Monat)", _settings.Person2PensionGrossMonthly);
-  AddMoney("Person1ProjectedPensionGrossMonthlyAt67", "Rente Person 1 – DRV-Hochrechnung bis 67 (optional, brutto/Monat)", _settings.Person1ProjectedPensionGrossMonthlyAt67);
-  AddMoney("Person2ProjectedPensionGrossMonthlyAt67", "Rente Person 2 – DRV-Hochrechnung bis 67 (optional, brutto/Monat)", _settings.Person2ProjectedPensionGrossMonthlyAt67);
-  AddDecimal("Person1CurrentPensionPoints", "Entgeltpunkte Person 1 (optional)", _settings.Person1CurrentPensionPoints);
-  AddDecimal("Person2CurrentPensionPoints", "Entgeltpunkte Person 2 (optional)", _settings.Person2CurrentPensionPoints);
-  AddMoney("Person1PensionableAnnualGross", "RV-pflichtiges Jahresbrutto Person 1 (optional)", _settings.Person1PensionableAnnualGross);
-  AddMoney("Person2PensionableAnnualGross", "RV-pflichtiges Jahresbrutto Person 2 (optional)", _settings.Person2PensionableAnnualGross);
-  AddPercent("Person1PensionableAnnualGrossIncreaseRate", "RV-Brutto-Steigerung Person 1 p.a. (optional)", _settings.Person1PensionableAnnualGrossIncreaseRate);
-  AddPercent("Person2PensionableAnnualGrossIncreaseRate", "RV-Brutto-Steigerung Person 2 p.a. (optional)", _settings.Person2PensionableAnnualGrossIncreaseRate);
-  AddPercent("PensionAverageAnnualEarningsIncreaseRate", "Durchschnittsentgelt Rentenversicherung – Steigerung p.a. [Standardwert]", _settings.PensionAverageAnnualEarningsIncreaseRate);
-  AddBool("KvdrPerson1", "KVdR für Person 1 annehmen", _settings.KvdrPerson1);
-  AddBool("KvdrPerson2", "KVdR für Person 2 annehmen", _settings.KvdrPerson2);
 
-  AddSection("6. Sichere Reserve & Rücklagen");
-  AddDecimal("ReserveYears", "Sichere Reserve in Jahresausgaben [Standardwert]", _settings.ReserveYears);
-  AddBool("AutoRefillReserve", "Reserve automatisch wieder auffüllen [Standardwert]", _settings.AutoRefillReserve);
-  AddBool("UseReserveOnNegativeStockYear", "Bei negativem Aktienjahr zuerst Reserve nutzen [Standardwert]", _settings.UseReserveOnNegativeStockYear);
-  AddPercent("CashInterestRate", "Zins Tages-/Festgeld [Standardwert]", _settings.CashInterestRate);
-
+  AddSection("4. Rücklagen / Sonderausgaben");
   AddMoney("HouseTotalValue", "Hauswert inkl. Grundstück", _settings.HouseTotalValue);
   AddPercent("HouseBuildingShare", "Anteil Gebäude am Hauswert [Standardwert]", _settings.HouseBuildingShare);
-  AddPercent("HouseReserveRate", "Jährliche Haus-Rücklage [Standardwert]", _settings.HouseReserveRate);
+
+  _houseMaintenanceAnnualText = new TextBlock
+  {
+   VerticalAlignment = VerticalAlignment.Center,
+   HorizontalAlignment = HorizontalAlignment.Center,
+   Margin = new Thickness(18, 0, 0, 0),
+   FontWeight = FontWeights.SemiBold,
+   Foreground = (Brush)FindResource("AccentBrush")
+  };
+
+  AddDecimal("HouseLivingArea", "Wohnfläche der Immobilie in m²", _settings.HouseLivingArea);
+  AddTextInput(
+   "HouseAge",
+   "Alter der Immobilie in Jahren",
+   _settings.HouseAge.ToString(CultureInfo.InvariantCulture),
+   InputType.Integer,
+   _houseMaintenanceAnnualText);
   AddMoney("CarReplacementValue", "Ersatzwert Auto", _settings.CarReplacementValue);
   AddInt("CarReplacementYears", "Auto-Ersatz nach Jahren [Standardwert]", _settings.CarReplacementYears);
   AddMoney("HealthReserveTarget", "Gesundheit / Zahnersatz Rücklage [Standardwert]", _settings.HealthReserveTarget);
   AddMoney("TravelReserveTarget", "Reisen / größere Wünsche Rücklage", _settings.TravelReserveTarget);
   AddMoney("OtherReserveTarget", "Sonstiges / Unvorhergesehenes Rücklage", _settings.OtherReserveTarget);
 
-  AddSection("7. Bestehende Depots – optional");
-  AddMoney("WorldEtfCurrentValue", "Wert des bereits vorhandenen Welt-ETF", _settings.WorldEtfCurrentValue);
-  AddInt("WorldEtfStartYear", "Seit wann besteht dieser Welt-ETF?", _settings.WorldEtfStartYear);
-  AddPercent("WorldEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Welt-ETF [Standardwert]", _settings.WorldEtfHistoricalReturn);
+  AddSection("5. Vermögen");
+  if (_currentInputPanel == null)
+   throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
+
+  _unassignedStartCapitalText = new TextBlock
+  {
+   VerticalAlignment = VerticalAlignment.Center,
+   Margin = new Thickness(10, 0, 0, 0)
+  };
+  AddMoney(
+   "StartCapital",
+   "Startvermögen bei vorzeitigem Arbeitsende Person 1",
+   _settings.StartCapital,
+   _unassignedStartCapitalText);
+
+  _existingDepotsStartCapitalText = new TextBlock
+  {
+   TextWrapping = TextWrapping.Wrap,
+   Foreground = (Brush)FindResource("MutedTextBrush"),
+   Margin = new Thickness(20, 10, 20, 4)
+  };
+  _currentInputPanel.Children.Add(_existingDepotsStartCapitalText);
+
+  _currentInputPanel.Children.Add(new TextBlock
+  {
+   Text = "Das Startvermögen entspricht 100 %. Alle darunter eingetragenen Anlagewerte sind Bestandteil dieses Gesamtvermögens und werden nicht zusätzlich hinzugerechnet.",
+   TextWrapping = TextWrapping.Wrap,
+   Foreground = (Brush)FindResource("WarningBrush"),
+   Margin = new Thickness(20, 0, 20, 10)
+  });
+
+  AddAllocationMoney("SecureInvestmentCurrentValue", "Wert der bereits vorhandenen sicheren Anlage (optional)", _settings.SecureInvestmentCurrentValue);
+  AddPercent("CashInterestRate", "Zins sichere Anlage [Standardwert]", _settings.CashInterestRate);
+  AddAllocationMoney("WorldEtfCurrentValue", "Wert des bereits vorhandenen Welt-ETF (optional)", _settings.WorldEtfCurrentValue);
+  AddInt("WorldEtfStartYear", "Seit wann besteht dieser Welt-ETF? (optional)", _settings.WorldEtfStartYear);
+  AddPercent("WorldEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Welt-ETF (optional) [Standardwert]", _settings.WorldEtfHistoricalReturn);
   AddPercent("WorldEtfReturn", "MSCI World / Welt-ETF Gesamtrendite [Standardwert]", _settings.WorldEtfReturn);
   AddPercent("WorldEtfDistribution", "MSCI World / Welt-ETF Ausschüttung", _settings.WorldEtfDistribution);
-  AddMoney("DividendEtfCurrentValue", "Wert des bereits vorhandenen Dividenden-ETF", _settings.DividendEtfCurrentValue);
-  AddInt("DividendEtfStartYear", "Seit wann besteht dieser Dividenden-ETF?", _settings.DividendEtfStartYear);
-  AddPercent("DividendEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Dividenden-ETF [Standardwert]", _settings.DividendEtfHistoricalReturn);
+  AddAllocationMoney("DividendEtfCurrentValue", "Wert des bereits vorhandenen Dividenden-ETF (optional)", _settings.DividendEtfCurrentValue);
+  AddInt("DividendEtfStartYear", "Seit wann besteht dieser Dividenden-ETF? (optional)", _settings.DividendEtfStartYear);
+  AddPercent("DividendEtfHistoricalReturn", "Bisherige durchschnittliche Rendite des Dividenden-ETF (optional) [Standardwert]", _settings.DividendEtfHistoricalReturn);
   AddPercent("DividendEtfReturn", "Dividenden-ETF Gesamtrendite [Standardwert]", _settings.DividendEtfReturn);
   AddPercent("DividendEtfDistribution", "Dividenden-ETF Ausschüttung", _settings.DividendEtfDistribution);
-  AddMoney("DividendStocksCurrentValue", "Wert der bereits vorhandenen Dividenden-Aktien", _settings.DividendStocksCurrentValue);
-  AddInt("DividendStocksStartYear", "Seit wann bestehen diese Dividenden-Aktien?", _settings.DividendStocksStartYear);
-  AddPercent("DividendStocksHistoricalReturn", "Bisherige durchschnittliche Rendite der Dividenden-Aktien [Standardwert]", _settings.DividendStocksHistoricalReturn);
+  AddAllocationMoney("DividendStocksCurrentValue", "Wert der bereits vorhandenen Dividenden-Aktien (optional)", _settings.DividendStocksCurrentValue);
+  AddInt("DividendStocksStartYear", "Seit wann bestehen diese Dividenden-Aktien? (optional)", _settings.DividendStocksStartYear);
+  AddPercent("DividendStocksHistoricalReturn", "Bisherige durchschnittliche Rendite der Dividenden-Aktien (optional) [Standardwert]", _settings.DividendStocksHistoricalReturn);
   AddPercent("DividendStocksReturn", "Dividenden-Aktien Gesamtrendite [Standardwert]", _settings.DividendStocksReturn);
   AddPercent("DividendStocksDistribution", "Dividenden-Aktien Ausschüttung", _settings.DividendStocksDistribution);
   AddBool("DividendSurplusReinvest", "Nicht benötigte Dividenden wieder anlegen", _settings.DividendSurplusReinvest);
 
-  AddSection("8. Strategie & Aufteilung");
-  AddChoice("Strategy", "Strategie [Standardwert]", GetDisplayedStrategy(),
-   ["Sicherheit", "Ausgewogen", "Wachstum", "Benutzerdefiniert"]);
-  AddPercent("AllocCash", "Anteil Tages-/Festgeld [Standardwert]", _allocation.Cash);
-  AddPercent("AllocWorld", "Anteil MSCI World / Welt-ETF [Standardwert]", _allocation.WorldEtf);
-  AddPercent("AllocDividendEtf", "Anteil Dividenden-ETF [Standardwert]", _allocation.DividendEtf);
-  AddPercent("AllocDividendStocks", "Anteil Dividenden-Aktien [Standardwert]", _allocation.DividendStocks);
+  AddSection("6. Strategie & Aufteilung");
+  if (_currentInputPanel == null)
+   throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  AddSection("9. Stressszenario");
+  _strategyStartCapitalText = new TextBlock
+  {
+   TextWrapping = TextWrapping.Wrap,
+   Foreground = (Brush)FindResource("MutedTextBrush"),
+   Margin = new Thickness(20, 10, 20, 4)
+  };
+  _currentInputPanel.Children.Add(_strategyStartCapitalText);
+
+  _currentInputPanel.Children.Add(new TextBlock
+  {
+   Text = "Die Werte 77–80 werden aus dem Ist-Stand und der gewählten Strategie automatisch berechnet. Bestehende Anlagen aus Rubrik 5 werden nicht verkauft oder reduziert. Bei „Benutzerdefiniert (Ist-Stand)“ wird noch nicht zugeordnetes Startvermögen der sicheren Anlage zugerechnet. Die Standardstrategien verteilen nur noch nicht zugeordnetes Kapital in Richtung ihrer Zielaufteilung.",
+   TextWrapping = TextWrapping.Wrap,
+   Foreground = (Brush)FindResource("WarningBrush"),
+   Margin = new Thickness(20, 0, 20, 10)
+  });
+
+  AddChoice("Strategy", "Strategie [Standardwert]", GetDisplayedStrategy(),
+   ["Benutzerdefiniert (Ist-Stand)", "Sicherheit", "Ausgewogen", "Wachstum"]);
+  AddDecimal("ReserveYears", "Sichere Reserve in Jahresausgaben [Standardwert]", _settings.ReserveYears);
+  AddBool("AutoRefillReserve", "Reserve automatisch wieder auffüllen [Standardwert]", _settings.AutoRefillReserve);
+  AddBool("UseReserveOnNegativeStockYear", "Bei negativem Aktienjahr zuerst Reserve nutzen [Standardwert]", _settings.UseReserveOnNegativeStockYear);
+  AddOptionalAllocationMoney("AllocCash", "Sichere Anlage Zielbetrag (optional) [Standardwert]", _settings.StartCapital * _allocation.Cash);
+  AddOptionalAllocationMoney("AllocWorld", "MSCI World / Welt-ETF Zielbetrag (optional) [Standardwert]", _settings.StartCapital * _allocation.WorldEtf);
+  AddOptionalAllocationMoney("AllocDividendEtf", "Dividenden-ETF Zielbetrag (optional) [Standardwert]", _settings.StartCapital * _allocation.DividendEtf);
+  AddOptionalAllocationMoney("AllocDividendStocks", "Dividenden-Aktien Zielbetrag (optional) [Standardwert]", _settings.StartCapital * _allocation.DividendStocks);
+  AddPercent("AdvanceLumpSumBaseRate", "Basiszins Vorabpauschale Stand 2026 (optional) [Standardwert]", _settings.AdvanceLumpSumBaseRate);
+
+  AddSection("7. Stressszenario");
   AddChoice("StressCrashPercent", "Crash-Stärke am Anfang [Standardwert]", FormatPercentChoice(_settings.StressCrashPercent),
    ["-15 %", "-25 %", "-40 %"]);
   AddBool("StressCrashAtStart", "Crash am Anfang simulieren [Standardwert]", _settings.StressCrashAtStart);
@@ -159,13 +243,18 @@ public partial class MainWindow : Window
   AddPercent("StressHealthInsuranceAdditionalRateAnnualChange", "Stress: zusätzl. GKV-Zusatzbeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressHealthInsuranceAdditionalRateAnnualChange);
   AddPercent("StressCareInsuranceRateAnnualChange", "Stress: zusätzl. Pflegebeitrag p.a. in Prozentpunkten [Standardwert]", _settings.StressCareInsuranceRateAnnualChange);
 
-  AddSection("10. Haus optional");
+  AddSection("8. Haus optional");
   AddBool("HouseIncluded", "Hausverkauf in Planung berücksichtigen", _settings.HouseIncluded);
   AddInt("HouseSaleYear", "Haus-Verkaufsjahr", _settings.HouseSaleYear);
   AddMoney("HouseNetSaleProceeds", "Nettoerlös Hausverkauf", _settings.HouseNetSaleProceeds);
 
   UpdateHouseholdPersonVisibility();
+  UpdateStartCapitalReferenceDisplays();
+  UpdateStrategyAllocation();
+  UpdateAllocationPercentDisplays();
+  UpdateUnassignedStartCapitalDisplay();
   UpdateCalculatedHealthDisplays();
+  UpdateHouseMaintenanceAnnualDisplay();
  }
 
  private void AddSection(string title)
@@ -187,6 +276,7 @@ public partial class MainWindow : Window
 
   InputSubTabs.Items.Add(tabItem);
   _currentInputPanel = panel;
+  _currentInputTab = tabItem;
 
   if (InputSubTabs.SelectedIndex < 0)
    InputSubTabs.SelectedIndex = 0;
@@ -197,6 +287,33 @@ public partial class MainWindow : Window
 
  private void AddMoney(string key, string label, decimal value) =>
   AddTextInput(key, label, FormatMoneyValue(value), InputType.Money);
+
+ private void AddMoney(string key, string label, decimal value, TextBlock valueInfo) =>
+  AddTextInput(key, label, FormatMoneyValue(value), InputType.Money, valueInfo);
+
+ private void AddAllocationMoney(string key, string label, decimal value)
+ {
+  var percentText = new TextBlock
+  {
+   VerticalAlignment = VerticalAlignment.Center,
+   Margin = new Thickness(10, 0, 0, 0)
+  };
+
+  _allocationPercentTexts[key] = percentText;
+  AddTextInput(key, label, FormatMoneyValue(value), InputType.Money, percentText);
+ }
+
+ private void AddOptionalAllocationMoney(string key, string label, decimal value)
+ {
+  var percentText = new TextBlock
+  {
+   VerticalAlignment = VerticalAlignment.Center,
+   Margin = new Thickness(10, 0, 0, 0)
+  };
+
+  _allocationPercentTexts[key] = percentText;
+  AddTextInput(key, label, FormatMoneyValue(value), InputType.OptionalMoney, percentText);
+ }
 
  private void AddReadOnlyMoney(string key, string label, decimal value)
  {
@@ -213,6 +330,7 @@ public partial class MainWindow : Window
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
   _currentInputPanel.Children.Add(CreateRow(label, textBox));
+  RegisterFieldNavigation(key);
  }
 
  private void AddDecimal(string key, string label, decimal value) =>
@@ -221,25 +339,51 @@ public partial class MainWindow : Window
  private void AddPercent(string key, string label, decimal value) =>
   AddTextInput(key, label, (value * 100m).ToString("0.##", CultureInfo.InvariantCulture), InputType.Percent);
 
- private void AddTextInput(string key, string label, string value, InputType type)
+ private void AddTextInput(
+  string key,
+  string label,
+  string value,
+  InputType type,
+  TextBlock? valueInfo = null)
  {
   var textBox = new TextBox { Text = value, Tag = type };
 
-  if (type == InputType.Money)
+  if (type is InputType.Money or InputType.OptionalMoney)
    textBox.TextChanged += MoneyTextBox_TextChanged;
 
   textBox.GotKeyboardFocus += TextBox_GotKeyboardFocus;
   textBox.LostKeyboardFocus += TextBox_LostKeyboardFocus;
   textBox.TextChanged += (_, _) => UpdateCalculatedHealthDisplays();
   textBox.TextChanged += (_, _) => _hasUnsavedChanges = true;
+
+  if (key is "HouseLivingArea" or "HouseAge" or "InflationRate")
+   textBox.TextChanged += (_, _) => UpdateHouseMaintenanceAnnualDisplay();
+
+  if (key == "StartCapital")
+  {
+   textBox.TextChanged += (_, _) => UpdateStartCapitalReferenceDisplays();
+   textBox.TextChanged += (_, _) => UpdateStrategyAllocation();
+   textBox.TextChanged += (_, _) => UpdateAllocationPercentDisplays();
+   textBox.TextChanged += (_, _) => UpdateUnassignedStartCapitalDisplay();
+  }
   if (key is "AllocCash" or "AllocWorld" or "AllocDividendEtf" or "AllocDividendStocks")
+  {
+   textBox.TextChanged += (_, _) => UpdateAllocationPercentDisplays();
    textBox.TextChanged += (_, _) => UpdateDisplayedStrategyFromAllocation();
+  }
+  else if (key is "SecureInvestmentCurrentValue" or "WorldEtfCurrentValue" or "DividendEtfCurrentValue" or "DividendStocksCurrentValue")
+  {
+   textBox.TextChanged += (_, _) => UpdateStrategyAllocation();
+   textBox.TextChanged += (_, _) => UpdateAllocationPercentDisplays();
+   textBox.TextChanged += (_, _) => UpdateUnassignedStartCapitalDisplay();
+  }
 
   _inputs[key] = textBox;
   if (_currentInputPanel == null)
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
-  _currentInputPanel.Children.Add(CreateRow(label, textBox));
+  _currentInputPanel.Children.Add(CreateRow(label, textBox, valueInfo));
+  RegisterFieldNavigation(key);
  }
 
  private void AddBool(string key, string label, bool value)
@@ -255,6 +399,7 @@ public partial class MainWindow : Window
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
   _currentInputPanel.Children.Add(CreateRow(label, combo));
+  RegisterFieldNavigation(key);
  }
 
  private void AddChoice(string key, string label, string value, IEnumerable<string> choices)
@@ -276,9 +421,21 @@ public partial class MainWindow : Window
    throw new InvalidOperationException("Keine Eingabe-Unterlasche aktiv.");
 
   _currentInputPanel.Children.Add(CreateRow(label, combo));
+  RegisterFieldNavigation(key);
  }
 
- private FrameworkElement CreateRow(string label, FrameworkElement input)
+ private void RegisterFieldNavigation(string key)
+ {
+  _fieldNumbersByKey[key] = _fieldNumber;
+
+  if (_currentInputTab != null)
+   _fieldTabsByKey[key] = _currentInputTab;
+ }
+
+ private FrameworkElement CreateRow(
+  string label,
+  FrameworkElement input,
+  TextBlock? valueInfo = null)
  {
   const string standardValueSuffix = " [Standardwert]";
   bool isStandardValue = label.EndsWith(
@@ -345,19 +502,31 @@ public partial class MainWindow : Window
   Grid.SetColumn(input, 2);
   grid.Children.Add(input);
 
-  if (isStandardValue)
+  if (valueInfo != null || isStandardValue)
   {
-   var standardValueText = new TextBlock
+   var infoPanel = new StackPanel
    {
-    Text = "[Standardwert]",
-    Foreground = (Brush)FindResource("AccentBrush"),
-    FontWeight = FontWeights.SemiBold,
-    VerticalAlignment = VerticalAlignment.Center,
-    Margin = new Thickness(10, 0, 0, 0)
+    Orientation = Orientation.Horizontal,
+    VerticalAlignment = VerticalAlignment.Center
    };
 
-   Grid.SetColumn(standardValueText, 3);
-   grid.Children.Add(standardValueText);
+   if (valueInfo != null)
+    infoPanel.Children.Add(valueInfo);
+
+   if (isStandardValue)
+   {
+    infoPanel.Children.Add(new TextBlock
+    {
+     Text = "[Standardwert]",
+     Foreground = (Brush)FindResource("AccentBrush"),
+     FontWeight = FontWeights.SemiBold,
+     VerticalAlignment = VerticalAlignment.Center,
+     Margin = new Thickness(10, 0, 0, 0)
+    });
+   }
+
+   Grid.SetColumn(infoPanel, 3);
+   grid.Children.Add(infoPanel);
   }
 
   return grid;
@@ -385,6 +554,7 @@ public partial class MainWindow : Window
    "CalculatedHealthPerson2Monthly",
    "Person2PensionGrossMonthly",
    "Person2ProjectedPensionGrossMonthlyAt67",
+   "Person2CurrentInsuranceYears",
    "Person2CurrentPensionPoints",
    "Person2PensionableAnnualGross",
    "Person2PensionableAnnualGrossIncreaseRate",
@@ -431,6 +601,51 @@ public partial class MainWindow : Window
   }
  }
 
+ private StrategyAllocation ReadDesiredAllocation(decimal startCapital)
+ {
+  string[] keys = ["AllocCash", "AllocWorld", "AllocDividendEtf", "AllocDividendStocks"];
+
+  bool[] empty = keys
+   .Select(key =>
+    _inputs.TryGetValue(key, out FrameworkElement? element) &&
+    element is TextBox textBox &&
+    string.IsNullOrWhiteSpace(textBox.Text))
+   .ToArray();
+
+  if (empty.All(value => value))
+  {
+   string strategy = ReadChoice("Strategy");
+   return GetDynamicStrategyAllocation(strategy);
+  }
+
+  if (empty.Any(value => value))
+   throw new InvalidOperationException(
+    "Entweder alle vier Zielbeträge ausfüllen oder alle vier Felder leer lassen.");
+
+  decimal allocationCash = ReadDecimal("AllocCash", 0m, 1000000000m);
+  decimal allocationWorld = ReadDecimal("AllocWorld", 0m, 1000000000m);
+  decimal allocationDividendEtf = ReadDecimal("AllocDividendEtf", 0m, 1000000000m);
+  decimal allocationDividendStocks = ReadDecimal("AllocDividendStocks", 0m, 1000000000m);
+  decimal allocationTotal =
+   allocationCash +
+   allocationWorld +
+   allocationDividendEtf +
+   allocationDividendStocks;
+
+  if (Math.Abs(allocationTotal - startCapital) > 0.01m)
+   throw new InvalidOperationException(
+    $"Die Summe der vier Zielbeträge muss genau dem Startvermögen von {FormatMoneyValue(startCapital)} € entsprechen.");
+
+  if (startCapital <= 0m)
+   return _allocation;
+
+  return new StrategyAllocation(
+   allocationCash / startCapital,
+   allocationWorld / startCapital,
+   allocationDividendEtf / startCapital,
+   allocationDividendStocks / startCapital);
+ }
+
  private int ReadHouseholdPersonCount()
  {
   return string.Equals(
@@ -454,13 +669,104 @@ public partial class MainWindow : Window
   allowanceTextBox.Text = FormatMoneyValue(allowance);
  }
 
+ private decimal GetCurrentStartCapital()
+ {
+  if (_inputs.TryGetValue("StartCapital", out FrameworkElement? startCapitalElement) &&
+      startCapitalElement is TextBox startCapitalTextBox &&
+      decimal.TryParse(startCapitalTextBox.Text, NumberStyles.Number, GermanCulture, out decimal startCapital))
+   return startCapital;
+
+  return _settings.StartCapital;
+ }
+
+ private void UpdateStartCapitalReferenceDisplays()
+ {
+  decimal startCapital = GetCurrentStartCapital();
+
+  if (_existingDepotsStartCapitalText != null)
+   _existingDepotsStartCapitalText.Text =
+    $"Startvermögen: {FormatMoneyValue(startCapital)} € = 100 %";
+
+  if (_strategyStartCapitalText != null)
+   _strategyStartCapitalText.Text =
+    $"Startvermögen: {FormatMoneyValue(startCapital)} € = 100 %";
+ }
+
+ private void UpdateUnassignedStartCapitalDisplay()
+ {
+  if (_unassignedStartCapitalText == null)
+   return;
+
+  decimal startCapital = GetCurrentStartCapital();
+
+  if (startCapital <= 0m)
+  {
+   _unassignedStartCapitalText.Text = "Noch nicht zugeordnet: —";
+   return;
+  }
+
+  decimal assigned = 0m;
+
+  foreach (string key in new[]
+  {
+   "SecureInvestmentCurrentValue",
+   "WorldEtfCurrentValue",
+   "DividendEtfCurrentValue",
+   "DividendStocksCurrentValue"
+  })
+  {
+   if (_inputs.TryGetValue(key, out FrameworkElement? element) &&
+       element is TextBox textBox &&
+       decimal.TryParse(textBox.Text, NumberStyles.Number, GermanCulture, out decimal amount))
+    assigned += Math.Max(0m, amount);
+  }
+
+  decimal difference = startCapital - assigned;
+  decimal percent = Math.Abs(difference) / startCapital;
+
+  _unassignedStartCapitalText.Text = difference >= 0m
+   ? $"Noch nicht zugeordnet: {FormatMoneyValue(difference)} € ({percent:P1})"
+   : $"Überzugeordnet: {FormatMoneyValue(Math.Abs(difference))} € ({percent:P1})";
+ }
+
+ private void UpdateAllocationPercentDisplays()
+ {
+  decimal startCapital = GetCurrentStartCapital();
+
+  foreach (string key in new[]
+  {
+   "SecureInvestmentCurrentValue",
+   "WorldEtfCurrentValue",
+   "DividendEtfCurrentValue",
+   "DividendStocksCurrentValue",
+   "AllocCash",
+   "AllocWorld",
+   "AllocDividendEtf",
+   "AllocDividendStocks"
+  })
+  {
+   if (!_allocationPercentTexts.TryGetValue(key, out TextBlock? percentText) ||
+       !_inputs.TryGetValue(key, out FrameworkElement? element) ||
+       element is not TextBox textBox ||
+       !decimal.TryParse(textBox.Text, NumberStyles.Number, GermanCulture, out decimal amount) ||
+       startCapital <= 0m)
+   {
+    if (_allocationPercentTexts.TryGetValue(key, out TextBlock? unavailableText))
+     unavailableText.Text = "(—)";
+
+    continue;
+   }
+
+   percentText.Text = $"({amount / startCapital:P1})";
+  }
+ }
+
  private void UpdateStrategyAllocation()
  {
   if (_isUpdatingStrategyAllocation ||
       !_inputs.TryGetValue("Strategy", out FrameworkElement? strategyElement) ||
       strategyElement is not ComboBox strategyCombo ||
       strategyCombo.SelectedItem is not string strategy ||
-      strategy == "Benutzerdefiniert" ||
       !_inputs.TryGetValue("AllocCash", out FrameworkElement? cashElement) ||
       cashElement is not TextBox cashTextBox ||
       !_inputs.TryGetValue("AllocWorld", out FrameworkElement? worldElement) ||
@@ -471,20 +777,84 @@ public partial class MainWindow : Window
       dividendStocksElement is not TextBox dividendStocksTextBox)
    return;
 
-  StrategyAllocation allocation = StrategyService.GetDefault(strategy);
+  decimal startCapital = GetCurrentStartCapital();
+  StrategyAllocation allocation = GetDynamicStrategyAllocation(strategy);
 
   _isUpdatingStrategyAllocation = true;
   try
   {
-   cashTextBox.Text = (allocation.Cash * 100m).ToString("0.##", CultureInfo.InvariantCulture);
-   worldTextBox.Text = (allocation.WorldEtf * 100m).ToString("0.##", CultureInfo.InvariantCulture);
-   dividendEtfTextBox.Text = (allocation.DividendEtf * 100m).ToString("0.##", CultureInfo.InvariantCulture);
-   dividendStocksTextBox.Text = (allocation.DividendStocks * 100m).ToString("0.##", CultureInfo.InvariantCulture);
+   cashTextBox.Text = FormatMoneyValue(startCapital * allocation.Cash);
+   worldTextBox.Text = FormatMoneyValue(startCapital * allocation.WorldEtf);
+   dividendEtfTextBox.Text = FormatMoneyValue(startCapital * allocation.DividendEtf);
+   dividendStocksTextBox.Text = FormatMoneyValue(startCapital * allocation.DividendStocks);
   }
   finally
   {
    _isUpdatingStrategyAllocation = false;
   }
+
+  UpdateAllocationPercentDisplays();
+ }
+
+ private StrategyAllocation GetDynamicStrategyAllocation(string strategy)
+ {
+  decimal startCapital = GetCurrentStartCapital();
+  if (startCapital <= 0m)
+   return new StrategyAllocation(0m, 0m, 0m, 0m);
+
+  decimal existingCash = GetCurrentInvestmentAmount(
+   "SecureInvestmentCurrentValue",
+   _settings.SecureInvestmentCurrentValue);
+  decimal existingWorld = GetCurrentInvestmentAmount(
+   "WorldEtfCurrentValue",
+   _settings.WorldEtfCurrentValue);
+  decimal existingDividendEtf = GetCurrentInvestmentAmount(
+   "DividendEtfCurrentValue",
+   _settings.DividendEtfCurrentValue);
+  decimal existingDividendStocks = GetCurrentInvestmentAmount(
+   "DividendStocksCurrentValue",
+   _settings.DividendStocksCurrentValue);
+
+  if (strategy is "Benutzerdefiniert" or "Benutzerdefiniert (Ist-Stand)")
+  {
+   decimal existingTotal =
+    existingCash +
+    existingWorld +
+    existingDividendEtf +
+    existingDividendStocks;
+   decimal unassignedCapital = Math.Max(0m, startCapital - existingTotal);
+
+   return new StrategyAllocation(
+    (existingCash + unassignedCapital) / startCapital,
+    existingWorld / startCapital,
+    existingDividendEtf / startCapital,
+    existingDividendStocks / startCapital);
+  }
+
+  PlannerSettings previewSettings = SettingsClone.Clone(_settings);
+  previewSettings.StartCapital = startCapital;
+  previewSettings.SecureInvestmentCurrentValue = existingCash;
+  previewSettings.WorldEtfCurrentValue = existingWorld;
+  previewSettings.DividendEtfCurrentValue = existingDividendEtf;
+  previewSettings.DividendStocksCurrentValue = existingDividendStocks;
+
+  return ProjectionService.GetInitialAllocation(
+   previewSettings,
+   StrategyService.GetDefault(strategy));
+ }
+
+ private decimal GetCurrentInvestmentAmount(string key, decimal fallback)
+ {
+  if (_inputs.TryGetValue(key, out FrameworkElement? element) &&
+      element is TextBox textBox &&
+      decimal.TryParse(
+       textBox.Text,
+       NumberStyles.Number,
+       GermanCulture,
+       out decimal amount))
+   return Math.Max(0m, amount);
+
+  return Math.Max(0m, fallback);
  }
 
  private void UpdateDisplayedStrategyFromAllocation()
@@ -506,11 +876,15 @@ public partial class MainWindow : Window
       !decimal.TryParse(dividendStocksTextBox.Text, NumberStyles.Number, GermanCulture, out decimal dividendStocks))
    return;
 
+  decimal startCapital = GetCurrentStartCapital();
+  if (startCapital <= 0m)
+   return;
+
   var allocation = new StrategyAllocation(
-   cash / 100m,
-   world / 100m,
-   dividendEtf / 100m,
-   dividendStocks / 100m);
+   cash / startCapital,
+   world / startCapital,
+   dividendEtf / startCapital,
+   dividendStocks / startCapital);
 
   string displayedStrategy = GetStrategyForAllocation(allocation);
 
@@ -533,23 +907,80 @@ public partial class MainWindow : Window
 
  private string GetDisplayedStrategy()
  {
-  return GetStrategyForAllocation(_allocation);
+  return _settings.Strategy is "Sicherheit" or "Ausgewogen" or "Wachstum"
+   ? _settings.Strategy
+   : "Benutzerdefiniert (Ist-Stand)";
  }
 
- private static string GetStrategyForAllocation(StrategyAllocation allocation)
+ private string GetStrategyForAllocation(StrategyAllocation allocation)
  {
-  foreach (string strategy in new[] { "Sicherheit", "Ausgewogen", "Wachstum" })
+  foreach (string strategy in new[]
   {
-   StrategyAllocation defaultAllocation = StrategyService.GetDefault(strategy);
+   "Benutzerdefiniert (Ist-Stand)",
+   "Sicherheit",
+   "Ausgewogen",
+   "Wachstum"
+  })
+  {
+   StrategyAllocation candidate = GetDynamicStrategyAllocation(strategy);
 
-   if (allocation.Cash == defaultAllocation.Cash &&
-       allocation.WorldEtf == defaultAllocation.WorldEtf &&
-       allocation.DividendEtf == defaultAllocation.DividendEtf &&
-       allocation.DividendStocks == defaultAllocation.DividendStocks)
+   if (Math.Abs(allocation.Cash - candidate.Cash) <= 0.000001m &&
+       Math.Abs(allocation.WorldEtf - candidate.WorldEtf) <= 0.000001m &&
+       Math.Abs(allocation.DividendEtf - candidate.DividendEtf) <= 0.000001m &&
+       Math.Abs(allocation.DividendStocks - candidate.DividendStocks) <= 0.000001m)
     return strategy;
   }
 
-  return "Benutzerdefiniert";
+  return "Benutzerdefiniert (Ist-Stand)";
+ }
+
+
+ private void UpdateHouseMaintenanceAnnualDisplay()
+ {
+  if (_houseMaintenanceAnnualText == null)
+   return;
+
+  if (!_inputs.TryGetValue("HouseLivingArea", out FrameworkElement? livingAreaElement) ||
+      livingAreaElement is not TextBox livingAreaTextBox ||
+      !_inputs.TryGetValue("HouseAge", out FrameworkElement? houseAgeElement) ||
+      houseAgeElement is not TextBox houseAgeTextBox ||
+      !decimal.TryParse(
+       livingAreaTextBox.Text.Replace(',', '.'),
+       NumberStyles.Number,
+       CultureInfo.InvariantCulture,
+       out decimal livingArea) ||
+      !int.TryParse(
+       houseAgeTextBox.Text,
+       NumberStyles.Integer,
+       CultureInfo.InvariantCulture,
+       out int houseAge) ||
+      livingArea < 0m ||
+      houseAge < 0)
+  {
+   _houseMaintenanceAnnualText.Text = "{ — €/Jahr }";
+   return;
+  }
+
+  PlannerSettings previewSettings = SettingsClone.Clone(_settings);
+  previewSettings.HouseLivingArea = livingArea;
+  previewSettings.HouseAge = houseAge;
+
+  if (_inputs.TryGetValue("InflationRate", out FrameworkElement? inflationElement) &&
+      inflationElement is TextBox inflationTextBox &&
+      decimal.TryParse(
+       inflationTextBox.Text.Replace(',', '.'),
+       NumberStyles.Number,
+       CultureInfo.InvariantCulture,
+       out decimal inflationPercent))
+   previewSettings.InflationRate = inflationPercent / 100m;
+
+  decimal annualMaintenance =
+   ProjectionService.CalculateHouseMaintenanceExpense(
+    previewSettings,
+    DateTime.Today.Year);
+
+  _houseMaintenanceAnnualText.Text =
+   $"{{ {FormatMoneyValue(annualMaintenance)} €/Jahr }}";
  }
 
  private void UpdateCalculatedHealthDisplays()
@@ -606,6 +1037,7 @@ public partial class MainWindow : Window
     previewSettings.Person2NetIncomeIncreaseRate = ReadPercent("Person2NetIncomeIncreaseRate", -0.50m, 1m);
     previewSettings.Person2RetirementAge = ReadInt("Person2RetirementAge");
    }
+   previewSettings.SecureInvestmentCurrentValue = ReadDecimal("SecureInvestmentCurrentValue", 0m, 1000000000m);
    previewSettings.CashInterestRate = ReadPercent("CashInterestRate", -0.05m, 0.20m);
    previewSettings.WorldEtfDistribution = ReadPercent("WorldEtfDistribution", 0m, 0.50m);
    previewSettings.DividendEtfDistribution = ReadPercent("DividendEtfDistribution", 0m, 0.50m);
@@ -620,12 +1052,7 @@ public partial class MainWindow : Window
    previewSettings.HealthInsuranceAdditionalRateAnnualChange = ReadPercent("HealthInsuranceAdditionalRateAnnualChange", -0.20m, 0.20m);
    previewSettings.CareInsuranceRateAnnualChange = ReadPercent("CareInsuranceRateAnnualChange", -0.20m, 0.20m);
 
-   previewAllocation = new StrategyAllocation(
-    ReadPercent("AllocCash", 0m, 1m),
-    ReadPercent("AllocWorld", 0m, 1m),
-    ReadPercent("AllocDividendEtf", 0m, 1m),
-    ReadPercent("AllocDividendStocks", 0m, 1m));
-
+   previewAllocation = ReadDesiredAllocation(previewSettings.StartCapital);
    return true;
   }
   catch
@@ -635,84 +1062,201 @@ public partial class MainWindow : Window
   }
  }
 
+ private void ShowInputError(
+  string error,
+  IEnumerable<string> fieldKeys)
+ {
+  StatusText.Inlines.Clear();
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run(error)
+  {
+   Foreground = (Brush)FindResource("DangerBrush")
+  });
+
+  List<string> keys = fieldKeys
+   .Where(key => _fieldNumbersByKey.ContainsKey(key))
+   .Distinct(StringComparer.Ordinal)
+   .OrderBy(key => _fieldNumbersByKey[key])
+   .ToList();
+
+  if (keys.Count == 0)
+   return;
+
+  StatusText.Inlines.Add(new System.Windows.Documents.Run(" | Ursächliche Felder: ")
+  {
+   Foreground = (Brush)FindResource("MutedTextBrush")
+  });
+
+  for (int i = 0; i < keys.Count; i++)
+  {
+   string key = keys[i];
+
+   if (i > 0)
+   {
+    StatusText.Inlines.Add(new System.Windows.Documents.Run(", ")
+    {
+     Foreground = (Brush)FindResource("MutedTextBrush")
+    });
+   }
+
+   var link = new System.Windows.Documents.Hyperlink(
+    new System.Windows.Documents.Run($"{_fieldNumbersByKey[key]:00}"))
+   {
+    Foreground = (Brush)FindResource("AccentBrush"),
+    Cursor = Cursors.Hand
+   };
+
+   link.Click += (_, _) => NavigateToInputField(key);
+   StatusText.Inlines.Add(link);
+  }
+ }
+
+ private void NavigateToInputField(string key)
+ {
+  if (_fieldTabsByKey.TryGetValue(key, out TabItem? tabItem))
+  {
+   MainTabs.SelectedIndex = 0;
+   InputSubTabs.SelectedItem = tabItem;
+  }
+
+  if (!_inputs.TryGetValue(key, out FrameworkElement? input))
+   return;
+
+  input.BringIntoView();
+  input.Focus();
+
+  if (input is TextBox textBox)
+   textBox.SelectAll();
+ }
+
+ private SortedDictionary<int, string> GetRawInputValuesForLog()
+ {
+  var values = new SortedDictionary<int, string>();
+
+  foreach (KeyValuePair<string, int> field in _fieldNumbersByKey)
+  {
+   if (!_inputs.TryGetValue(field.Key, out FrameworkElement? input))
+    continue;
+
+   string value = input switch
+   {
+    TextBox textBox => textBox.Text,
+    ComboBox comboBox => comboBox.SelectedItem?.ToString() ?? "",
+    _ => ""
+   };
+
+   values[field.Value] = value;
+  }
+
+  return values;
+ }
+
+ private void WriteFailedCalculationLog(string error)
+ {
+  CalculationLogService.WriteFailure(
+   error,
+   GetRawInputValuesForLog());
+
+  UpdateCalculationLog();
+ }
+
  private void Calculate_Click(object sender, RoutedEventArgs e)
  {
-  if (!TryReadSettings(out string error))
+  if (!TryReadSettings(
+       out string error,
+       out IReadOnlyList<string> errorFieldKeys))
   {
-   StatusText.Text = error;
-   StatusText.Foreground = (Brush)FindResource("DangerBrush");
+   ShowInputError(error, errorFieldKeys);
+   WriteFailedCalculationLog(error);
    return;
   }
 
   decimal sum = _allocation.Cash + _allocation.WorldEtf + _allocation.DividendEtf + _allocation.DividendStocks;
   if (Math.Abs(sum - 1m) > 0.0001m)
   {
-   StatusText.Text = $"Warnung: Anlageaufteilung ergibt {sum:P1} statt 100 %.";
-   StatusText.Foreground = (Brush)FindResource("WarningBrush");
+   string allocationError =
+    $"Warnung: Anlageaufteilung ergibt {sum:P1} statt 100 %.";
+
+   ShowInputError(
+    allocationError,
+    ["AllocCash", "AllocWorld", "AllocDividendEtf", "AllocDividendStocks"]);
+   WriteFailedCalculationLog(allocationError);
    return;
   }
 
-  _baseResult = ProjectionService.Calculate(_settings, _allocation, false);
-  _stressResult = ProjectionService.Calculate(_settings, _allocation, true);
-
-  if (_resultsWindow != null)
-   _resultsWindow.UpdateResults(_settings, _allocation, _baseResult, _stressResult);
-
-  CalculationLogService.Write(_settings, _allocation, _baseResult, _stressResult);
-  UpdateCalculationLog();
-  UpdateCalculationDocumentation();
-
-  ResultsButton.IsEnabled = true;
-
-  string recommended = StrategyService.Recommend(_settings);
-  decimal existingDepotTotal =
-   _settings.WorldEtfCurrentValue +
-   _settings.DividendEtfCurrentValue +
-   _settings.DividendStocksCurrentValue;
-  decimal strategyCapital = Math.Max(0m, _settings.StartCapital - existingDepotTotal);
-  decimal initialCash = strategyCapital * _allocation.Cash;
-  string reserveWarning = _baseResult.InitialRequiredCash > initialCash
-   ? " Tages-/Festgeld ist kleiner als Reserve + Rücklagen."
-   : "";
-
-  StatusText.Inlines.Clear();
-
-  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Basis: {_baseResult.OverallStatus}")
+  try
   {
-   Foreground = _baseResult.ReachesPlanEnd
-    ? (Brush)FindResource("SuccessBrush")
-    : (Brush)FindResource("DangerBrush")
-  });
+   _baseResult = ProjectionService.Calculate(_settings, _allocation, false);
+   _stressResult = ProjectionService.Calculate(_settings, _allocation, true);
 
-  StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
-  {
-   Foreground = (Brush)FindResource("MutedTextBrush")
-  });
+   if (_resultsWindow != null)
+    _resultsWindow.UpdateResults(_settings, _allocation, _baseResult, _stressResult);
 
-  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Stress: {_stressResult.OverallStatus}")
-  {
-   Foreground = _stressResult.ReachesPlanEnd
-    ? (Brush)FindResource("SuccessBrush")
-    : (Brush)FindResource("DangerBrush")
-  });
+   CalculationLogService.Write(_settings, _allocation, _baseResult, _stressResult);
+   UpdateCalculationLog();
+   UpdateCalculationDocumentation();
 
-  StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
-  {
-   Foreground = (Brush)FindResource("MutedTextBrush")
-  });
+   ResultsButton.IsEnabled = true;
 
-  StatusText.Inlines.Add(new System.Windows.Documents.Run($"Empfehlung: {recommended}.{reserveWarning}")
+   string recommended = StrategyService.Recommend(_settings);
+   StrategyAllocation initialAllocation =
+    ProjectionService.GetInitialAllocation(_settings, _allocation);
+   decimal initialCash = _settings.StartCapital * initialAllocation.Cash;
+   string reserveWarning = _baseResult.InitialRequiredCash > initialCash
+    ? " Sichere Anlage ist kleiner als Reserve + Rücklagen."
+    : "";
+
+   StatusText.Inlines.Clear();
+
+   StatusText.Inlines.Add(new System.Windows.Documents.Run($"Basis: {_baseResult.OverallStatus}")
+   {
+    Foreground = _baseResult.ReachesPlanEnd
+     ? (Brush)FindResource("SuccessBrush")
+     : (Brush)FindResource("DangerBrush")
+   });
+
+   StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
+   {
+    Foreground = (Brush)FindResource("MutedTextBrush")
+   });
+
+   StatusText.Inlines.Add(new System.Windows.Documents.Run($"Stress: {_stressResult.OverallStatus}")
+   {
+    Foreground = _stressResult.ReachesPlanEnd
+     ? (Brush)FindResource("SuccessBrush")
+     : (Brush)FindResource("DangerBrush")
+   });
+
+   StatusText.Inlines.Add(new System.Windows.Documents.Run(" | ")
+   {
+    Foreground = (Brush)FindResource("MutedTextBrush")
+   });
+
+   StatusText.Inlines.Add(new System.Windows.Documents.Run($"Empfehlung: {recommended}.{reserveWarning}")
+   {
+    Foreground = (Brush)FindResource("WarningBrush")
+   });
+  }
+  catch (Exception ex)
   {
-   Foreground = (Brush)FindResource("WarningBrush")
-  });
+   _baseResult = null;
+   _stressResult = null;
+   ResultsButton.IsEnabled = false;
+
+   string calculationError =
+    "Berechnungsfehler: " + ex.Message;
+
+   ShowInputError(calculationError, []);
+   WriteFailedCalculationLog(calculationError);
+  }
  }
-
  private void Save_Click(object sender, RoutedEventArgs e)
  {
-  if (!TryReadSettings(out string error))
+  if (!TryReadSettings(
+       out string error,
+       out IReadOnlyList<string> errorFieldKeys))
   {
-   StatusText.Text = error;
-   StatusText.Foreground = (Brush)FindResource("DangerBrush");
+   ShowInputError(error, errorFieldKeys);
    return;
   }
 
@@ -732,10 +1276,11 @@ public partial class MainWindow : Window
 
  private void Export_Click(object sender, RoutedEventArgs e)
  {
-  if (!TryReadSettings(out string error))
+  if (!TryReadSettings(
+       out string error,
+       out IReadOnlyList<string> errorFieldKeys))
   {
-   StatusText.Text = error;
-   StatusText.Foreground = (Brush)FindResource("DangerBrush");
+   ShowInputError(error, errorFieldKeys);
    return;
   }
 
@@ -873,9 +1418,12 @@ public partial class MainWindow : Window
   _resultsWindow.Show();
  }
 
- private bool TryReadSettings(out string error)
+ private bool TryReadSettings(
+  out string error,
+  out IReadOnlyList<string> errorFieldKeys)
  {
   error = "";
+  errorFieldKeys = [];
 
   try
   {
@@ -898,6 +1446,7 @@ public partial class MainWindow : Window
 
    _settings.MonthlyLivingCosts = ReadDecimal("MonthlyLivingCosts", 0m, 1000000m);
    _settings.InflationRate = ReadPercent("InflationRate", -0.05m, 0.20m);
+   _settings.IncomeTaxTariffAnnualIncreaseRate = ReadPercent("IncomeTaxTariffAnnualIncreaseRate", 0m, 0.20m);
    _settings.PensionIncreaseRate = ReadPercent("PensionIncreaseRate", -0.05m, 0.20m);
    _settings.VoluntaryHealthInsuranceMinimumMonthlyIncome = ReadDecimal("VoluntaryHealthInsuranceMinimumMonthlyIncome", 0m, 100000m);
    _settings.VoluntaryHealthInsuranceMaximumMonthlyIncome = ReadDecimal("VoluntaryHealthInsuranceMaximumMonthlyIncome", 0m, 100000m);
@@ -911,6 +1460,7 @@ public partial class MainWindow : Window
 
    _settings.Person1PensionGrossMonthly = ReadDecimal("Person1PensionGrossMonthly", 0m, 100000m);
    _settings.Person1ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person1ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
+   _settings.Person1CurrentInsuranceYears = ReadInt("Person1CurrentInsuranceYears");
    _settings.Person1CurrentPensionPoints = ReadDecimal("Person1CurrentPensionPoints", 0m, 1000m);
    _settings.Person1PensionableAnnualGross = ReadDecimal("Person1PensionableAnnualGross", 0m, 1000000m);
    _settings.Person1PensionableAnnualGrossIncreaseRate = ReadPercent("Person1PensionableAnnualGrossIncreaseRate", -0.50m, 0.50m);
@@ -921,6 +1471,7 @@ public partial class MainWindow : Window
    {
     _settings.Person2PensionGrossMonthly = ReadDecimal("Person2PensionGrossMonthly", 0m, 100000m);
     _settings.Person2ProjectedPensionGrossMonthlyAt67 = ReadDecimal("Person2ProjectedPensionGrossMonthlyAt67", 0m, 100000m);
+    _settings.Person2CurrentInsuranceYears = ReadInt("Person2CurrentInsuranceYears");
     _settings.Person2CurrentPensionPoints = ReadDecimal("Person2CurrentPensionPoints", 0m, 1000m);
     _settings.Person2PensionableAnnualGross = ReadDecimal("Person2PensionableAnnualGross", 0m, 1000000m);
     _settings.Person2PensionableAnnualGrossIncreaseRate = ReadPercent("Person2PensionableAnnualGrossIncreaseRate", -0.50m, 0.50m);
@@ -932,50 +1483,65 @@ public partial class MainWindow : Window
    _settings.ReserveYears = ReadDecimal("ReserveYears", 0m, 20m);
    _settings.AutoRefillReserve = ReadBool("AutoRefillReserve");
    _settings.UseReserveOnNegativeStockYear = ReadBool("UseReserveOnNegativeStockYear");
-   _settings.CashInterestRate = ReadPercent("CashInterestRate", -0.05m, 0.20m);
 
    _settings.HouseTotalValue = ReadDecimal("HouseTotalValue", 0m, 100000000m);
    _settings.HouseBuildingShare = ReadPercent("HouseBuildingShare", 0m, 1m);
-   _settings.HouseReserveRate = ReadPercent("HouseReserveRate", 0m, 0.20m);
+   _settings.HouseLivingArea = ReadDecimal("HouseLivingArea", 0m, 10000m);
+   _settings.HouseAge = ReadInt("HouseAge");
    _settings.CarReplacementValue = ReadDecimal("CarReplacementValue", 0m, 1000000m);
    _settings.CarReplacementYears = ReadInt("CarReplacementYears");
    _settings.HealthReserveTarget = ReadDecimal("HealthReserveTarget", 0m, 10000000m);
    _settings.TravelReserveTarget = ReadDecimal("TravelReserveTarget", 0m, 10000000m);
    _settings.OtherReserveTarget = ReadDecimal("OtherReserveTarget", 0m, 10000000m);
 
+   _settings.SecureInvestmentCurrentValue = ReadDecimal("SecureInvestmentCurrentValue", 0m, 1000000000m);
+   _settings.CashInterestRate = ReadPercent("CashInterestRate", -0.05m, 0.20m);
+
    _settings.WorldEtfCurrentValue = ReadDecimal("WorldEtfCurrentValue", 0m, 1000000000m);
-   _settings.WorldEtfStartYear = ReadInt("WorldEtfStartYear");
-   _settings.WorldEtfHistoricalReturn = ReadPercent("WorldEtfHistoricalReturn", -0.99m, 1m);
+   if (_settings.WorldEtfCurrentValue > 0m)
+   {
+    _settings.WorldEtfStartYear = ReadInt("WorldEtfStartYear");
+    _settings.WorldEtfHistoricalReturn = ReadPercent("WorldEtfHistoricalReturn", -0.99m, 1m);
+   }
    _settings.WorldEtfReturn = ReadPercent("WorldEtfReturn", -1m, 1m);
    _settings.WorldEtfDistribution = ReadPercent("WorldEtfDistribution", 0m, 0.50m);
+
    _settings.DividendEtfCurrentValue = ReadDecimal("DividendEtfCurrentValue", 0m, 1000000000m);
-   _settings.DividendEtfStartYear = ReadInt("DividendEtfStartYear");
-   _settings.DividendEtfHistoricalReturn = ReadPercent("DividendEtfHistoricalReturn", -0.99m, 1m);
+   if (_settings.DividendEtfCurrentValue > 0m)
+   {
+    _settings.DividendEtfStartYear = ReadInt("DividendEtfStartYear");
+    _settings.DividendEtfHistoricalReturn = ReadPercent("DividendEtfHistoricalReturn", -0.99m, 1m);
+   }
    _settings.DividendEtfReturn = ReadPercent("DividendEtfReturn", -1m, 1m);
    _settings.DividendEtfDistribution = ReadPercent("DividendEtfDistribution", 0m, 0.50m);
+
    _settings.DividendStocksCurrentValue = ReadDecimal("DividendStocksCurrentValue", 0m, 1000000000m);
-   _settings.DividendStocksStartYear = ReadInt("DividendStocksStartYear");
-   _settings.DividendStocksHistoricalReturn = ReadPercent("DividendStocksHistoricalReturn", -0.99m, 1m);
+   if (_settings.DividendStocksCurrentValue > 0m)
+   {
+    _settings.DividendStocksStartYear = ReadInt("DividendStocksStartYear");
+    _settings.DividendStocksHistoricalReturn = ReadPercent("DividendStocksHistoricalReturn", -0.99m, 1m);
+   }
    _settings.DividendStocksReturn = ReadPercent("DividendStocksReturn", -1m, 1m);
    _settings.DividendStocksDistribution = ReadPercent("DividendStocksDistribution", 0m, 0.50m);
 
-   decimal existingDepotTotal =
+   decimal existingInvestmentTotal =
+    _settings.SecureInvestmentCurrentValue +
     _settings.WorldEtfCurrentValue +
     _settings.DividendEtfCurrentValue +
     _settings.DividendStocksCurrentValue;
 
-   if (existingDepotTotal > _settings.StartCapital)
-    throw new InvalidOperationException(
-     "Die Summe der bestehenden Depotwerte darf das verfügbare Startvermögen nicht überschreiten.");
+   if (existingInvestmentTotal > _settings.StartCapital)
+    throw new InputValidationException(
+     "Die Summe der bestehenden Anlagewerte darf das verfügbare Startvermögen nicht überschreiten.",
+     "StartCapital",
+     "SecureInvestmentCurrentValue",
+     "WorldEtfCurrentValue",
+     "DividendEtfCurrentValue",
+     "DividendStocksCurrentValue");
 
    _settings.DividendSurplusReinvest = ReadBool("DividendSurplusReinvest");
    _settings.Strategy = ReadChoice("Strategy");
-
-   _allocation = new StrategyAllocation(
-    ReadPercent("AllocCash", 0m, 1m),
-    ReadPercent("AllocWorld", 0m, 1m),
-    ReadPercent("AllocDividendEtf", 0m, 1m),
-    ReadPercent("AllocDividendStocks", 0m, 1m));
+   _allocation = ReadDesiredAllocation(_settings.StartCapital);
 
    _settings.CapitalGainsAllowance = ReadDecimal("CapitalGainsAllowance", 0m, 100000m);
    _settings.JointTaxation =
@@ -1001,7 +1567,10 @@ public partial class MainWindow : Window
     _settings.Person1Age + (_settings.Person1WorkEndYear - DateTime.Today.Year);
 
    if (_settings.Person1RetirementAge < workEndAgePerson1)
-    throw new InvalidOperationException("Der Beginn der gesetzlichen Rente darf nicht vor dem jeweiligen vorzeitigen Arbeitsende liegen.");
+    throw new InputValidationException(
+     "Der Beginn der gesetzlichen Rente darf nicht vor dem jeweiligen vorzeitigen Arbeitsende liegen.",
+     "Person1WorkEndYear",
+     "Person1RetirementAge");
 
    if (_settings.HouseholdPersonCount == 2)
    {
@@ -1009,34 +1578,128 @@ public partial class MainWindow : Window
      _settings.Person2Age + (_settings.Person2WorkEndYear - DateTime.Today.Year);
 
     if (_settings.Person2RetirementAge < workEndAgePerson2)
-     throw new InvalidOperationException("Der Beginn der gesetzlichen Rente darf nicht vor dem jeweiligen vorzeitigen Arbeitsende liegen.");
+     throw new InputValidationException(
+      "Der Beginn der gesetzlichen Rente darf nicht vor dem jeweiligen vorzeitigen Arbeitsende liegen.",
+      "Person2WorkEndYear",
+      "Person2RetirementAge");
+   }
+
+   if (_settings.Person1CurrentInsuranceYears < 0)
+    throw new InputValidationException(
+     "Die bisherigen Versicherungsjahre von Person 1 dürfen nicht negativ sein.",
+     "Person1CurrentInsuranceYears");
+
+   if (!PensionService.HasRequiredInsuranceYearsForEarlyRetirement(
+        _settings.Person1CurrentInsuranceYears,
+        _settings.Person1WorkEndYear,
+        _settings.Person1RetirementAge))
+   {
+    int insuranceYearsAtWorkEnd =
+     PensionService.CalculateInsuranceYearsAtWorkEnd(
+      _settings.Person1CurrentInsuranceYears,
+      _settings.Person1WorkEndYear);
+
+    throw new InputValidationException(
+     $"Person 1 erreicht bis zum Arbeitsende nur {insuranceYearsAtWorkEnd} Versicherungsjahre. " +
+     $"Für einen Rentenbeginn vor 67 werden mindestens {PensionService.MinimumInsuranceYearsForEarlyRetirement} Versicherungsjahre benötigt.",
+     "Person1WorkEndYear",
+     "Person1RetirementAge",
+     "Person1CurrentInsuranceYears");
    }
 
    if (_settings.Person1EndAge < _settings.Person1RetirementAge)
-    throw new InvalidOperationException("Die Lebenserwartung muss nach dem Beginn der gesetzlichen Rente liegen.");
+    throw new InputValidationException(
+     "Die Lebenserwartung muss nach dem Beginn der gesetzlichen Rente liegen.",
+     "Person1RetirementAge",
+     "Person1EndAge");
+
+   if (_settings.HouseholdPersonCount == 2 &&
+       _settings.Person2CurrentInsuranceYears < 0)
+    throw new InputValidationException(
+     "Die bisherigen Versicherungsjahre von Person 2 dürfen nicht negativ sein.",
+     "Person2CurrentInsuranceYears");
+
+   if (_settings.HouseholdPersonCount == 2 &&
+       !PensionService.HasRequiredInsuranceYearsForEarlyRetirement(
+        _settings.Person2CurrentInsuranceYears,
+        _settings.Person2WorkEndYear,
+        _settings.Person2RetirementAge))
+   {
+    int insuranceYearsAtWorkEnd =
+     PensionService.CalculateInsuranceYearsAtWorkEnd(
+      _settings.Person2CurrentInsuranceYears,
+      _settings.Person2WorkEndYear);
+
+    throw new InputValidationException(
+     $"Person 2 erreicht bis zum Arbeitsende nur {insuranceYearsAtWorkEnd} Versicherungsjahre. " +
+     $"Für einen Rentenbeginn vor 67 werden mindestens {PensionService.MinimumInsuranceYearsForEarlyRetirement} Versicherungsjahre benötigt.",
+     "Person2WorkEndYear",
+     "Person2RetirementAge",
+     "Person2CurrentInsuranceYears");
+   }
 
    if (_settings.HouseholdPersonCount == 2 &&
        _settings.Person2EndAge < _settings.Person2RetirementAge)
-    throw new InvalidOperationException("Die Lebenserwartung muss nach dem Beginn der gesetzlichen Rente liegen.");
+    throw new InputValidationException(
+     "Die Lebenserwartung muss nach dem Beginn der gesetzlichen Rente liegen.",
+     "Person2RetirementAge",
+     "Person2EndAge");
+
+   if (_settings.HouseTotalValue > 0m &&
+       _settings.HouseLivingArea <= 0m)
+    throw new InputValidationException(
+     "Die Wohnfläche der Immobilie muss größer als 0 m² sein, wenn ein Hauswert eingetragen ist.",
+     "HouseTotalValue",
+     "HouseLivingArea");
+
+   if (_settings.HouseAge < 0)
+    throw new InputValidationException(
+     "Das Alter der Immobilie darf nicht negativ sein.",
+     "HouseAge");
 
    if (_settings.CarReplacementYears <= 0)
-    throw new InvalidOperationException("Auto-Ersatz nach Jahren muss größer als 0 sein.");
+    throw new InputValidationException(
+     "Auto-Ersatz nach Jahren muss größer als 0 sein.",
+     "CarReplacementYears");
 
    if (_settings.VoluntaryHealthInsuranceMinimumMonthlyIncome > _settings.VoluntaryHealthInsuranceMaximumMonthlyIncome)
-    throw new InvalidOperationException("Die GKV/Pflege Mindest-Bemessungsgrundlage darf nicht über der Beitragsbemessungsgrenze liegen.");
+    throw new InputValidationException(
+     "Die GKV/Pflege Mindest-Bemessungsgrundlage darf nicht über der Beitragsbemessungsgrenze liegen.",
+     "VoluntaryHealthInsuranceMinimumMonthlyIncome",
+     "VoluntaryHealthInsuranceMaximumMonthlyIncome");
 
    if (_settings.HealthInsuranceBaseYear <= 0)
-    throw new InvalidOperationException("Das GKV/Pflege Basisjahr muss größer als 0 sein.");
+    throw new InputValidationException(
+     "Das GKV/Pflege Basisjahr muss größer als 0 sein.",
+     "HealthInsuranceBaseYear");
 
    int currentYear = DateTime.Today.Year;
-   if (_settings.WorldEtfStartYear <= 0 || _settings.WorldEtfStartYear > currentYear)
-    throw new InvalidOperationException("Das Startjahr des MSCI World / Welt-ETF muss im aktuellen Jahr oder davor liegen.");
-   if (_settings.DividendEtfStartYear <= 0 || _settings.DividendEtfStartYear > currentYear)
-    throw new InvalidOperationException("Das Startjahr des Dividenden-ETF muss im aktuellen Jahr oder davor liegen.");
-   if (_settings.DividendStocksStartYear <= 0 || _settings.DividendStocksStartYear > currentYear)
-    throw new InvalidOperationException("Das Startjahr der Dividenden-Aktien muss im aktuellen Jahr oder davor liegen.");
+   if (_settings.WorldEtfCurrentValue > 0m &&
+       (_settings.WorldEtfStartYear <= 0 || _settings.WorldEtfStartYear > currentYear))
+    throw new InputValidationException(
+     "Das Startjahr des MSCI World / Welt-ETF muss im aktuellen Jahr oder davor liegen.",
+     "WorldEtfCurrentValue",
+     "WorldEtfStartYear");
+   if (_settings.DividendEtfCurrentValue > 0m &&
+       (_settings.DividendEtfStartYear <= 0 || _settings.DividendEtfStartYear > currentYear))
+    throw new InputValidationException(
+     "Das Startjahr des Dividenden-ETF muss im aktuellen Jahr oder davor liegen.",
+     "DividendEtfCurrentValue",
+     "DividendEtfStartYear");
+   if (_settings.DividendStocksCurrentValue > 0m &&
+       (_settings.DividendStocksStartYear <= 0 || _settings.DividendStocksStartYear > currentYear))
+    throw new InputValidationException(
+     "Das Startjahr der Dividenden-Aktien muss im aktuellen Jahr oder davor liegen.",
+     "DividendStocksCurrentValue",
+     "DividendStocksStartYear");
 
    return true;
+  }
+  catch (InputValidationException ex)
+  {
+   error = "Eingabefehler: " + ex.Message;
+   errorFieldKeys = ex.FieldKeys;
+   return false;
   }
   catch (Exception ex)
   {
@@ -1049,21 +1712,28 @@ public partial class MainWindow : Window
  {
   if (_inputs[key] is not TextBox tb ||
       !int.TryParse(tb.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
-   throw new InvalidOperationException($"Ungültige Ganzzahl bei „{key}“.");
+   throw new InputValidationException(
+    $"Ungültige Ganzzahl bei „{key}“.",
+    key);
   return value;
  }
 
  private decimal ReadDecimal(string key, decimal min, decimal max)
  {
   if (_inputs[key] is not TextBox tb)
-   throw new InvalidOperationException($"Ungültige Zahl bei „{key}“.");
+   throw new InputValidationException(
+    $"Ungültige Zahl bei „{key}“.",
+    key);
 
   decimal value;
 
-  if (tb.Tag is InputType inputType && inputType == InputType.Money)
+  if (tb.Tag is InputType inputType &&
+      inputType is InputType.Money or InputType.OptionalMoney)
   {
    if (!decimal.TryParse(tb.Text, NumberStyles.Number, GermanCulture, out value))
-    throw new InvalidOperationException($"Ungültige Zahl bei „{key}“.");
+    throw new InputValidationException(
+     $"Ungültige Zahl bei „{key}“.",
+     key);
   }
   else
   {
@@ -1072,7 +1742,9 @@ public partial class MainWindow : Window
   }
 
   if (value < min || value > max)
-   throw new InvalidOperationException($"Wert bei „{key}“ liegt außerhalb des sinnvollen Bereichs.");
+   throw new InputValidationException(
+    $"Wert bei „{key}“ liegt außerhalb des sinnvollen Bereichs.",
+    key);
 
   return value;
  }
@@ -1085,7 +1757,9 @@ public partial class MainWindow : Window
  private string ReadChoice(string key)
  {
   if (_inputs[key] is not ComboBox cb || cb.SelectedItem is not string value)
-   throw new InvalidOperationException($"Keine Auswahl bei „{key}“.");
+   throw new InputValidationException(
+    $"Keine Auswahl bei „{key}“.",
+    key);
   return value;
  }
 
@@ -1124,7 +1798,7 @@ public partial class MainWindow : Window
   if (sender is not TextBox textBox ||
       !string.IsNullOrWhiteSpace(textBox.Text) ||
       textBox.Tag is not InputType inputType ||
-      inputType == InputType.Integer)
+      inputType is InputType.Integer or InputType.OptionalMoney)
    return;
 
   textBox.Text = "0";
@@ -1202,7 +1876,7 @@ public partial class MainWindow : Window
    if (CalculationDocumentationText == null)
     return;
 
-   TryReadSettings(out _);
+   TryReadSettings(out _, out _);
    UpdateCalculationDocumentation();
    return;
   }
@@ -1258,11 +1932,12 @@ public partial class MainWindow : Window
   if (dialog.Choice == SaveChangesChoice.Discard)
    return;
 
-  if (!TryReadSettings(out string error))
+  if (!TryReadSettings(
+       out string error,
+       out IReadOnlyList<string> errorFieldKeys))
   {
    e.Cancel = true;
-   StatusText.Text = error;
-   StatusText.Foreground = (Brush)FindResource("DangerBrush");
+   ShowInputError(error, errorFieldKeys);
    return;
   }
 
@@ -1284,11 +1959,25 @@ public partial class MainWindow : Window
   _help.ClosePinned();
  }
 
+ private sealed class InputValidationException : InvalidOperationException
+ {
+  public IReadOnlyList<string> FieldKeys { get; }
+
+  public InputValidationException(
+   string message,
+   params string[] fieldKeys)
+   : base(message)
+  {
+   FieldKeys = fieldKeys;
+  }
+ }
+
  private enum InputType
  {
   Integer,
   Decimal,
   Money,
+  OptionalMoney,
   Percent
  }
 }

@@ -2,24 +2,125 @@ namespace RockefellerFiction;
 
 public static class ProjectionService
 {
+ public const int HouseMaintenanceBaseYear = 2026;
+ public const decimal HouseMaintenanceRateUnder22 = 11.49m;
+ public const decimal HouseMaintenanceRateFrom22 = 14.58m;
+ public const decimal HouseMaintenanceRateFrom32 = 18.62m;
+
+ public static int GetHouseAgeAtYear(PlannerSettings s, int year)
+ {
+  return Math.Max(0, s.HouseAge + year - DateTime.Today.Year);
+ }
+
+ public static decimal GetHouseMaintenanceRatePerSquareMeter(int houseAge)
+ {
+  if (houseAge >= 32)
+   return HouseMaintenanceRateFrom32;
+
+  if (houseAge >= 22)
+   return HouseMaintenanceRateFrom22;
+
+  return HouseMaintenanceRateUnder22;
+ }
+
+ public static decimal CalculateHouseMaintenanceExpense(PlannerSettings s, int year)
+ {
+  bool houseOwned = !s.HouseIncluded || year <= s.HouseSaleYear;
+
+  if (!houseOwned || s.HouseLivingArea <= 0m)
+   return 0m;
+
+  int houseAge = GetHouseAgeAtYear(s, year);
+  decimal ratePerSquareMeter = GetHouseMaintenanceRatePerSquareMeter(houseAge);
+  int yearsFromBaseYear = Math.Max(0, year - HouseMaintenanceBaseYear);
+  decimal inflationFactor = Pow(1m + s.InflationRate, yearsFromBaseYear);
+
+  return s.HouseLivingArea * ratePerSquareMeter * inflationFactor;
+ }
+
+ public static StrategyAllocation GetInitialAllocation(
+  PlannerSettings s,
+  StrategyAllocation desiredAllocation)
+ {
+  if (s.StartCapital <= 0m)
+   return desiredAllocation;
+
+  decimal existingCash = Math.Max(0m, s.SecureInvestmentCurrentValue);
+  decimal existingWorld = Math.Max(0m, s.WorldEtfCurrentValue);
+  decimal existingDividendEtf = Math.Max(0m, s.DividendEtfCurrentValue);
+  decimal existingDividendStocks = Math.Max(0m, s.DividendStocksCurrentValue);
+  decimal existingInvestmentTotal =
+   existingCash +
+   existingWorld +
+   existingDividendEtf +
+   existingDividendStocks;
+
+  if (existingInvestmentTotal >= s.StartCapital)
+  {
+   return new StrategyAllocation(
+    existingCash / s.StartCapital,
+    existingWorld / s.StartCapital,
+    existingDividendEtf / s.StartCapital,
+    existingDividendStocks / s.StartCapital);
+  }
+
+  decimal remainingCapital = s.StartCapital - existingInvestmentTotal;
+
+  decimal targetCash = s.StartCapital * desiredAllocation.Cash;
+  decimal targetWorld = s.StartCapital * desiredAllocation.WorldEtf;
+  decimal targetDividendEtf = s.StartCapital * desiredAllocation.DividendEtf;
+  decimal targetDividendStocks = s.StartCapital * desiredAllocation.DividendStocks;
+
+  decimal cashGap = Math.Max(0m, targetCash - existingCash);
+  decimal worldGap = Math.Max(0m, targetWorld - existingWorld);
+  decimal dividendEtfGap = Math.Max(0m, targetDividendEtf - existingDividendEtf);
+  decimal dividendStocksGap = Math.Max(0m, targetDividendStocks - existingDividendStocks);
+  decimal totalGap =
+   cashGap +
+   worldGap +
+   dividendEtfGap +
+   dividendStocksGap;
+
+  decimal cash;
+  decimal world;
+  decimal dividendEtf;
+  decimal dividendStocks;
+
+  if (totalGap <= 0m)
+  {
+   cash = existingCash + remainingCapital;
+   world = existingWorld;
+   dividendEtf = existingDividendEtf;
+   dividendStocks = existingDividendStocks;
+  }
+  else
+  {
+   cash = existingCash + remainingCapital * cashGap / totalGap;
+   world = existingWorld + remainingCapital * worldGap / totalGap;
+   dividendEtf = existingDividendEtf + remainingCapital * dividendEtfGap / totalGap;
+   dividendStocks = existingDividendStocks + remainingCapital * dividendStocksGap / totalGap;
+  }
+
+  return new StrategyAllocation(
+   cash / s.StartCapital,
+   world / s.StartCapital,
+   dividendEtf / s.StartCapital,
+   dividendStocks / s.StartCapital);
+ }
+
  public static ProjectionResult Calculate(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
   var result = new ProjectionResult();
 
-  decimal existingDepotTotal =
-   s.WorldEtfCurrentValue +
-   s.DividendEtfCurrentValue +
-   s.DividendStocksCurrentValue;
-  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
+  StrategyAllocation initialAllocation = GetInitialAllocation(s, allocation);
+  decimal cash = s.StartCapital * initialAllocation.Cash;
+  decimal world = s.StartCapital * initialAllocation.WorldEtf;
+  decimal divEtf = s.StartCapital * initialAllocation.DividendEtf;
+  decimal divStocks = s.StartCapital * initialAllocation.DividendStocks;
 
-  decimal cash = strategyCapital * allocation.Cash;
-  decimal worldNewInvestment = strategyCapital * allocation.WorldEtf;
-  decimal divEtfNewInvestment = strategyCapital * allocation.DividendEtf;
-  decimal divStocksNewInvestment = strategyCapital * allocation.DividendStocks;
-
-  decimal world = s.WorldEtfCurrentValue + worldNewInvestment;
-  decimal divEtf = s.DividendEtfCurrentValue + divEtfNewInvestment;
-  decimal divStocks = s.DividendStocksCurrentValue + divStocksNewInvestment;
+  decimal worldNewInvestment = Math.Max(0m, world - s.WorldEtfCurrentValue);
+  decimal divEtfNewInvestment = Math.Max(0m, divEtf - s.DividendEtfCurrentValue);
+  decimal divStocksNewInvestment = Math.Max(0m, divStocks - s.DividendStocksCurrentValue);
 
   decimal worldCostBasis =
    EstimateInitialCostBasis(
@@ -96,11 +197,18 @@ public static class ProjectionService
    decimal healthInsuranceRelevantCapitalIncome = 0m;
    decimal totalAnnualNeed = living;
 
-   bool houseOwned = !s.HouseIncluded || year <= s.HouseSaleYear;
-   decimal houseReserveAnnual = houseOwned
-    ? s.HouseTotalValue * s.HouseBuildingShare * s.HouseReserveRate * inflationFactor
+   decimal houseMaintenanceExpense =
+    CalculateHouseMaintenanceExpense(s, year);
+
+   int carReplacementIntervalYears = Math.Max(1, s.CarReplacementYears);
+   int yearsSincePlanningStart = year - s.PlanningYear;
+   bool carReplacementDue =
+    yearsSincePlanningStart > 0 &&
+    yearsSincePlanningStart % carReplacementIntervalYears == 0;
+   decimal carReplacementExpense = carReplacementDue
+    ? s.CarReplacementValue * inflationFactor
     : 0m;
-   decimal carReserveAnnual = (s.CarReplacementValue / Math.Max(1, s.CarReplacementYears)) * inflationFactor;
+
    decimal healthTarget = s.HealthReserveTarget * inflationFactor;
    decimal travelTarget = s.TravelReserveTarget * inflationFactor;
    decimal otherTarget = s.OtherReserveTarget * inflationFactor;
@@ -200,10 +308,19 @@ public static class ProjectionService
    }
 
    healthCare = healthCarePerson1 + healthCarePerson2;
-   totalAnnualNeed = living + healthCare;
+   decimal recurringAnnualNeed =
+    living +
+    healthCare +
+    houseMaintenanceExpense;
+   totalAnnualNeed =
+    recurringAnnualNeed +
+    carReplacementExpense;
 
-   decimal reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
-                           healthTarget + travelTarget + otherTarget;
+   decimal reserveTarget =
+    recurringAnnualNeed * s.ReserveYears +
+    healthTarget +
+    travelTarget +
+    otherTarget;
 
    decimal realizedStockGains = 0m;
    decimal realizedEquityFundGains = 0m;
@@ -428,9 +545,18 @@ public static class ProjectionService
     healthCarePerson1 = Math.Max(healthCarePerson1, targetHealthCarePerson1);
     healthCarePerson2 = Math.Max(healthCarePerson2, targetHealthCarePerson2);
     healthCare = healthCarePerson1 + healthCarePerson2;
-    totalAnnualNeed = living + healthCare;
-    reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
-                    healthTarget + travelTarget + otherTarget;
+    recurringAnnualNeed =
+     living +
+     healthCare +
+     houseMaintenanceExpense;
+    totalAnnualNeed =
+     recurringAnnualNeed +
+     carReplacementExpense;
+    reserveTarget =
+     recurringAnnualNeed * s.ReserveYears +
+     healthTarget +
+     travelTarget +
+     otherTarget;
 
     if (additionalHealthCare > 0.01m)
     {
@@ -553,14 +679,14 @@ public static class ProjectionService
 
    decimal portfolioEnd = cash + world + divEtf + divStocks;
 
-   if (!depleted && (fundingGap > 0m || (portfolioEnd <= 0.01m && year < finalYear)))
+   if (!depleted && (fundingGap > 0.01m || (portfolioEnd <= 0.01m && year < finalYear)))
    {
     depleted = true;
     depletionYear = year;
    }
 
    string yearStatus =
-    fundingGap > 0m || (portfolioEnd <= 0.01m && year < finalYear)
+    fundingGap > 0.01m || (portfolioEnd <= 0.01m && year < finalYear)
      ? "Rot"
      : year == finalYear
       ? "Grün"
@@ -593,6 +719,21 @@ public static class ProjectionService
     PensionPerson2Gross = pension.Person2Gross,
     PensionNet = pension.Net,
     PensionHealthAndCareDeductions = pension.HealthAndCareDeductions,
+    PensionHealthAndCareDeductionsPerson1 = pension.HealthAndCareDeductions1,
+    PensionHealthAndCareDeductionsPerson2 = pension.HealthAndCareDeductions2,
+    PensionTaxableIncomePerson1 = pension.TaxableIncome1,
+    PensionTaxableIncomePerson2 = pension.TaxableIncome2,
+    PensionTaxableSharePerson1 = pension.TaxableShare1,
+    PensionTaxableSharePerson2 = pension.TaxableShare2,
+    PensionFixedTaxFreeAmountPerson1 = pension.FixedTaxFreePensionAmount1,
+    PensionFixedTaxFreeAmountPerson2 = pension.FixedTaxFreePensionAmount2,
+    PensionStartYearPerson1 = pension.PensionStartYear1,
+    PensionStartYearPerson2 = pension.PensionStartYear2,
+    PensionIncomeTaxBeforeSurcharges = pension.IncomeTaxBeforeSurcharges,
+    PensionSolidaritySurcharge = pension.SolidaritySurcharge,
+    PensionChurchTax = pension.ChurchTax,
+    PensionTaxTariffFactor = pension.TaxTariffFactor,
+    PensionProjectedBasicAllowance = pension.ProjectedBasicAllowance,
     PensionIncomeTax = pension.IncomeTax,
     DividendsGross = dividendsGross,
     InterestGross = cashReturn,
@@ -636,8 +777,10 @@ public static class ProjectionService
     WorldNetIncome = worldNetIncome,
     DividendEtfNetIncome = divEtfNetIncome,
     DividendStocksNetIncome = divStocksNetIncome,
-    HouseReserveTarget = houseReserveAnnual,
-    CarReserveTarget = carReserveAnnual,
+    HouseMaintenanceExpense = houseMaintenanceExpense,
+    CarReplacementExpense = carReplacementExpense,
+    HouseReserveTarget = 0m,
+    CarReserveTarget = 0m,
     HealthReserveTarget = healthTarget,
     TravelReserveTarget = travelTarget,
     OtherReserveTarget = otherTarget,
@@ -660,16 +803,11 @@ public static class ProjectionService
   PlannerSettings s,
   StrategyAllocation allocation)
  {
-  decimal existingDepotTotal =
-   s.WorldEtfCurrentValue +
-   s.DividendEtfCurrentValue +
-   s.DividendStocksCurrentValue;
-  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
-
-  decimal cash = strategyCapital * allocation.Cash;
-  decimal world = s.WorldEtfCurrentValue + strategyCapital * allocation.WorldEtf;
-  decimal divEtf = s.DividendEtfCurrentValue + strategyCapital * allocation.DividendEtf;
-  decimal divStocks = s.DividendStocksCurrentValue + strategyCapital * allocation.DividendStocks;
+  StrategyAllocation initialAllocation = GetInitialAllocation(s, allocation);
+  decimal cash = s.StartCapital * initialAllocation.Cash;
+  decimal world = s.StartCapital * initialAllocation.WorldEtf;
+  decimal divEtf = s.StartCapital * initialAllocation.DividendEtf;
+  decimal divStocks = s.StartCapital * initialAllocation.DividendStocks;
 
   decimal interest = Math.Max(0m, cash * s.CashInterestRate);
   decimal worldDistribution = Math.Max(0m, world * s.WorldEtfDistribution);
@@ -724,13 +862,15 @@ public static class ProjectionService
 
  private static decimal EstimateMinimumStartCapital(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
-  decimal existingDepotTotal =
+  decimal existingInvestmentTotal =
+   s.SecureInvestmentCurrentValue +
    s.WorldEtfCurrentValue +
    s.DividendEtfCurrentValue +
    s.DividendStocksCurrentValue;
-  decimal low = existingDepotTotal;
+
+  decimal low = existingInvestmentTotal;
   decimal high = Math.Max(
-   existingDepotTotal,
+   existingInvestmentTotal,
    Math.Max(100000m, s.StartCapital > 0m ? s.StartCapital : 100000m));
 
   for (int i = 0; i < 30; i++)
@@ -765,20 +905,15 @@ public static class ProjectionService
 
  private static decimal CalculateCoreWithoutEstimate(PlannerSettings s, StrategyAllocation allocation, bool stress)
  {
-  decimal existingDepotTotal =
-   s.WorldEtfCurrentValue +
-   s.DividendEtfCurrentValue +
-   s.DividendStocksCurrentValue;
-  decimal strategyCapital = Math.Max(0m, s.StartCapital - existingDepotTotal);
+  StrategyAllocation initialAllocation = GetInitialAllocation(s, allocation);
+  decimal cash = s.StartCapital * initialAllocation.Cash;
+  decimal world = s.StartCapital * initialAllocation.WorldEtf;
+  decimal divEtf = s.StartCapital * initialAllocation.DividendEtf;
+  decimal divStocks = s.StartCapital * initialAllocation.DividendStocks;
 
-  decimal cash = strategyCapital * allocation.Cash;
-  decimal worldNewInvestment = strategyCapital * allocation.WorldEtf;
-  decimal divEtfNewInvestment = strategyCapital * allocation.DividendEtf;
-  decimal divStocksNewInvestment = strategyCapital * allocation.DividendStocks;
-
-  decimal world = s.WorldEtfCurrentValue + worldNewInvestment;
-  decimal divEtf = s.DividendEtfCurrentValue + divEtfNewInvestment;
-  decimal divStocks = s.DividendStocksCurrentValue + divStocksNewInvestment;
+  decimal worldNewInvestment = Math.Max(0m, world - s.WorldEtfCurrentValue);
+  decimal divEtfNewInvestment = Math.Max(0m, divEtf - s.DividendEtfCurrentValue);
+  decimal divStocksNewInvestment = Math.Max(0m, divStocks - s.DividendStocksCurrentValue);
 
   decimal worldCostBasis =
    EstimateInitialCostBasis(
@@ -844,11 +979,18 @@ public static class ProjectionService
    decimal living = s.MonthlyLivingCosts * 12m * factor;
    decimal healthCare = 0m;
 
-   bool houseOwned = !s.HouseIncluded || year <= s.HouseSaleYear;
-   decimal houseReserveAnnual = houseOwned
-    ? s.HouseTotalValue * s.HouseBuildingShare * s.HouseReserveRate * factor
+   decimal houseMaintenanceExpense =
+    CalculateHouseMaintenanceExpense(s, year);
+
+   int carReplacementIntervalYears = Math.Max(1, s.CarReplacementYears);
+   int yearsSincePlanningStart = year - s.PlanningYear;
+   bool carReplacementDue =
+    yearsSincePlanningStart > 0 &&
+    yearsSincePlanningStart % carReplacementIntervalYears == 0;
+   decimal carReplacementExpense = carReplacementDue
+    ? s.CarReplacementValue * factor
     : 0m;
-   decimal carReserveAnnual = (s.CarReplacementValue / Math.Max(1, s.CarReplacementYears)) * factor;
+
    decimal healthTarget = s.HealthReserveTarget * factor;
    decimal travelTarget = s.TravelReserveTarget * factor;
    decimal otherTarget = s.OtherReserveTarget * factor;
@@ -940,9 +1082,18 @@ public static class ProjectionService
     }
    }
 
-   decimal totalAnnualNeed = living + healthCare;
-   decimal reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
-                           healthTarget + travelTarget + otherTarget;
+   decimal recurringAnnualNeed =
+    living +
+    healthCare +
+    houseMaintenanceExpense;
+   decimal totalAnnualNeed =
+    recurringAnnualNeed +
+    carReplacementExpense;
+   decimal reserveTarget =
+    recurringAnnualNeed * s.ReserveYears +
+    healthTarget +
+    travelTarget +
+    otherTarget;
 
    decimal realizedStockGains = 0m;
    decimal realizedEquityFundGains = 0m;
@@ -1034,7 +1185,7 @@ public static class ProjectionService
     need -= sold;
    }
 
-   if (need > 0m)
+   if (need > 0.01m)
     return -1m;
 
    bool stockYearNegative = wr < 0m || er < 0m || sr < 0m;
@@ -1141,9 +1292,18 @@ public static class ProjectionService
     decimal additionalHealthCare = Math.Max(0m, targetHealthCare - healthCare);
 
     healthCare = Math.Max(healthCare, targetHealthCare);
-    totalAnnualNeed = living + healthCare;
-    reserveTarget = totalAnnualNeed * s.ReserveYears + houseReserveAnnual + carReserveAnnual +
-                    healthTarget + travelTarget + otherTarget;
+    recurringAnnualNeed =
+     living +
+     healthCare +
+     houseMaintenanceExpense;
+    totalAnnualNeed =
+     recurringAnnualNeed +
+     carReplacementExpense;
+    reserveTarget =
+     recurringAnnualNeed * s.ReserveYears +
+     healthTarget +
+     travelTarget +
+     otherTarget;
 
     if (additionalHealthCare > 0.01m)
     {

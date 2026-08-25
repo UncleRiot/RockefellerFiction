@@ -6,7 +6,7 @@
         Height="560"
         MinWidth="620"
         MinHeight="460"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgBrush}"
         Foreground="{DynamicResource TextBrush}">
     <Window.Resources>
@@ -56,7 +56,7 @@
                        TextWrapping="Wrap"
                        Margin="0,3,0,0">
                 <Hyperlink x:Name="ReleaseHyperlink"
-                           Foreground="{DynamicResource AccentBrush}"
+                           Foreground="#66B3FF"
                            RequestNavigate="Link_RequestNavigate">
                     <Run x:Name="ReleaseUrlRun"/>
                 </Hyperlink>
@@ -71,7 +71,7 @@
                        TextWrapping="Wrap"
                        Margin="0,3,0,0">
                 <Hyperlink x:Name="DownloadHyperlink"
-                           Foreground="{DynamicResource AccentBrush}"
+                           Foreground="#66B3FF"
                            RequestNavigate="Link_RequestNavigate">
                     <Run x:Name="DownloadUrlRun"/>
                 </Hyperlink>

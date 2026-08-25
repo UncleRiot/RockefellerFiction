@@ -17,6 +17,7 @@ public sealed class PlannerSettings
 
  public decimal MonthlyLivingCosts { get; set; } = 2000m;
  public decimal InflationRate { get; set; } = 0.025m;
+ public decimal IncomeTaxTariffAnnualIncreaseRate { get; set; }
  public decimal PensionIncreaseRate { get; set; } = 0.01m;
  public decimal VoluntaryHealthInsuranceMinimumMonthlyIncome { get; set; } = 1318.33m;
  public decimal VoluntaryHealthInsuranceMaximumMonthlyIncome { get; set; } = 5812.50m;
@@ -34,6 +35,8 @@ public sealed class PlannerSettings
  public decimal Person2PensionGrossMonthly { get; set; } = 1000m;
  public decimal Person1ProjectedPensionGrossMonthlyAt67 { get; set; }
  public decimal Person2ProjectedPensionGrossMonthlyAt67 { get; set; }
+ public int Person1CurrentInsuranceYears { get; set; }
+ public int Person2CurrentInsuranceYears { get; set; }
  public decimal Person1CurrentPensionPoints { get; set; }
  public decimal Person2CurrentPensionPoints { get; set; }
  public decimal Person1PensionableAnnualGross { get; set; }
@@ -53,11 +56,13 @@ public sealed class PlannerSettings
  public decimal ReserveYears { get; set; } = 2m;
  public bool AutoRefillReserve { get; set; } = true;
  public bool UseReserveOnNegativeStockYear { get; set; } = true;
+ public decimal SecureInvestmentCurrentValue { get; set; }
  public decimal CashInterestRate { get; set; } = 0.005m;
 
  public decimal HouseTotalValue { get; set; } = 500000m;
  public decimal HouseBuildingShare { get; set; } = 0.70m;
- public decimal HouseReserveRate { get; set; } = 0.02m;
+ public decimal HouseLivingArea { get; set; }
+ public int HouseAge { get; set; }
  public decimal CarReplacementValue { get; set; } = 15000m;
  public int CarReplacementYears { get; set; } = 15;
  public decimal HealthReserveTarget { get; set; } = 10000m;
@@ -106,6 +111,45 @@ public sealed class OneTimeCashFlow
 
 public sealed record StrategyAllocation(decimal Cash, decimal WorldEtf, decimal DividendEtf, decimal DividendStocks);
 
+public sealed record PensionTaxableIncomeDiagnostics(
+ decimal TaxableIncome,
+ decimal TaxableShare,
+ decimal FixedTaxFreePensionAmount,
+ decimal DeductibleHealthAndCare,
+ decimal PensionIncomeExpenseAllowance,
+ int PensionStartYear);
+
+public sealed record ProjectedIncomeTaxDiagnostics(
+ decimal IncomeTaxBeforeSurcharges,
+ decimal SolidaritySurcharge,
+ decimal ChurchTax,
+ decimal Total,
+ decimal TariffFactor,
+ decimal ProjectedBasicAllowance);
+
+public sealed record AnnualPensionResult(
+ decimal Gross,
+ decimal Net,
+ decimal HealthAndCareDeductions,
+ decimal IncomeTax,
+ decimal Person1Gross,
+ decimal Person2Gross,
+ decimal TaxableIncome1,
+ decimal TaxableIncome2,
+ decimal HealthAndCareDeductions1,
+ decimal HealthAndCareDeductions2,
+ decimal TaxableShare1,
+ decimal TaxableShare2,
+ decimal FixedTaxFreePensionAmount1,
+ decimal FixedTaxFreePensionAmount2,
+ int PensionStartYear1,
+ int PensionStartYear2,
+ decimal IncomeTaxBeforeSurcharges,
+ decimal SolidaritySurcharge,
+ decimal ChurchTax,
+ decimal TaxTariffFactor,
+ decimal ProjectedBasicAllowance);
+
 public sealed class YearResult
 {
  public int Year { get; set; }
@@ -131,6 +175,21 @@ public sealed class YearResult
  public decimal PensionPerson2Gross { get; set; }
  public decimal PensionNet { get; set; }
  public decimal PensionHealthAndCareDeductions { get; set; }
+ public decimal PensionHealthAndCareDeductionsPerson1 { get; set; }
+ public decimal PensionHealthAndCareDeductionsPerson2 { get; set; }
+ public decimal PensionTaxableIncomePerson1 { get; set; }
+ public decimal PensionTaxableIncomePerson2 { get; set; }
+ public decimal PensionTaxableSharePerson1 { get; set; }
+ public decimal PensionTaxableSharePerson2 { get; set; }
+ public decimal PensionFixedTaxFreeAmountPerson1 { get; set; }
+ public decimal PensionFixedTaxFreeAmountPerson2 { get; set; }
+ public int PensionStartYearPerson1 { get; set; }
+ public int PensionStartYearPerson2 { get; set; }
+ public decimal PensionIncomeTaxBeforeSurcharges { get; set; }
+ public decimal PensionSolidaritySurcharge { get; set; }
+ public decimal PensionChurchTax { get; set; }
+ public decimal PensionTaxTariffFactor { get; set; }
+ public decimal PensionProjectedBasicAllowance { get; set; }
  public decimal PensionIncomeTax { get; set; }
  public decimal DividendsGross { get; set; }
  public decimal InterestGross { get; set; }
@@ -174,6 +233,10 @@ public sealed class YearResult
  public decimal WorldNetIncome { get; set; }
  public decimal DividendEtfNetIncome { get; set; }
  public decimal DividendStocksNetIncome { get; set; }
+ public decimal HouseMaintenanceExpense { get; set; }
+ public decimal CarReplacementExpense { get; set; }
+ public decimal ReserveAndSpecialExpenses =>
+  HouseMaintenanceExpense + CarReplacementExpense;
  public decimal HouseReserveTarget { get; set; }
  public decimal CarReserveTarget { get; set; }
  public decimal HealthReserveTarget { get; set; }

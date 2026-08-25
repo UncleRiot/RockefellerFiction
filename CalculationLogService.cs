@@ -39,6 +39,41 @@ public static class CalculationLogService
   return path;
  }
 
+ public static string WriteFailure(
+  string error,
+  IReadOnlyDictionary<int, string> rawInputs)
+ {
+  string path = Path.Combine(
+   AppContext.BaseDirectory,
+   "RockefellerFiction.log.br");
+
+  var text = new StringBuilder();
+
+  AppendHeader(text);
+  AppendTitle(text, "BERECHNUNG FEHLGESCHLAGEN");
+  text.AppendLine(error);
+  text.AppendLine();
+
+  AppendTitle(text, "EINGABEN ZUM FEHLERZEITPUNKT");
+
+  foreach (KeyValuePair<int, string> input in rawInputs.OrderBy(x => x.Key))
+  {
+   string label = HintService.GetFieldLabel(input.Key);
+   text.AppendLine($"{input.Key:00}. {label} = {input.Value}");
+  }
+
+  using FileStream fileStream = File.Create(path);
+  using var brotliStream = new BrotliStream(
+   fileStream,
+   CompressionLevel.Optimal);
+  using var writer = new StreamWriter(
+   brotliStream,
+   new UTF8Encoding(true));
+
+  writer.Write(text.ToString());
+  return path;
+ }
+
  public static string Read()
  {
   string path = Path.Combine(
@@ -102,11 +137,25 @@ public static class CalculationLogService
   AppendMoney(text, "Lebenshaltung pro Monat", s.MonthlyLivingCosts);
   AppendPercent(text, "Inflation p.a.", s.InflationRate);
   AppendValue(text, "Einkommensteuertarif Basisjahr", 2026);
-  AppendValue(text, "Einkommensteuertarif Fortschreibung", "mit Inflation p.a.");
+  AppendPercent(
+   text,
+   "Steuertarif / Grundfreibetrag Steigerung p.a.",
+   s.IncomeTaxTariffAnnualIncreaseRate);
+  AppendValue(
+   text,
+   "Einkommensteuertarif Fortschreibung",
+   "separate Planungsannahme; nicht automatisch an Inflation gekoppelt");
   AppendPercent(text, "Rentensteigerung p.a.", s.PensionIncreaseRate);
 
   AppendMoney(text, "Rente Person 1 heute bereits erworben brutto pro Monat", s.Person1PensionGrossMonthly);
   AppendMoney(text, "Rente Person 1 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person1ProjectedPensionGrossMonthlyAt67);
+  AppendValue(text, "Bisherige Versicherungsjahre Person 1", s.Person1CurrentInsuranceYears);
+  AppendValue(
+   text,
+   "Versicherungsjahre Person 1 bis Arbeitsende",
+   PensionService.CalculateInsuranceYearsAtWorkEnd(
+    s.Person1CurrentInsuranceYears,
+    s.Person1WorkEndYear));
   AppendValue(text, "Entgeltpunkte Person 1 optional", s.Person1CurrentPensionPoints.ToString("N4", GermanCulture));
   AppendMoney(text, "RV-pflichtiges Jahresbrutto Person 1 optional", s.Person1PensionableAnnualGross);
   AppendPercent(text, "RV-Brutto-Steigerung Person 1 p.a. optional", s.Person1PensionableAnnualGrossIncreaseRate);
@@ -116,6 +165,13 @@ public static class CalculationLogService
   {
    AppendMoney(text, "Rente Person 2 heute bereits erworben brutto pro Monat", s.Person2PensionGrossMonthly);
    AppendMoney(text, "Rente Person 2 Hochrechnung bei Beiträgen bis 67 brutto pro Monat", s.Person2ProjectedPensionGrossMonthlyAt67);
+   AppendValue(text, "Bisherige Versicherungsjahre Person 2", s.Person2CurrentInsuranceYears);
+   AppendValue(
+    text,
+    "Versicherungsjahre Person 2 bis Arbeitsende",
+    PensionService.CalculateInsuranceYearsAtWorkEnd(
+     s.Person2CurrentInsuranceYears,
+     s.Person2WorkEndYear));
    AppendValue(text, "Entgeltpunkte Person 2 optional", s.Person2CurrentPensionPoints.ToString("N4", GermanCulture));
    AppendMoney(text, "RV-pflichtiges Jahresbrutto Person 2 optional", s.Person2PensionableAnnualGross);
    AppendPercent(text, "RV-Brutto-Steigerung Person 2 p.a. optional", s.Person2PensionableAnnualGrossIncreaseRate);
@@ -142,7 +198,8 @@ public static class CalculationLogService
   AppendValue(text, "Reserve automatisch auffüllen", s.AutoRefillReserve ? "Ja" : "Nein");
   AppendValue(text, "Reserve in negativen Aktienjahren schützen", s.UseReserveOnNegativeStockYear ? "Ja" : "Nein");
 
-  AppendPercent(text, "Tages-/Festgeld Zins", s.CashInterestRate);
+  AppendMoney(text, "Sichere Anlage aktueller Stand", s.SecureInvestmentCurrentValue);
+  AppendPercent(text, "Sichere Anlage Zins", s.CashInterestRate);
   AppendPercent(text, "Welt-ETF Gesamtrendite", s.WorldEtfReturn);
   AppendPercent(text, "Welt-ETF Ausschüttung", s.WorldEtfDistribution);
   AppendMoney(text, "Welt-ETF aktueller Stand", s.WorldEtfCurrentValue);
@@ -170,10 +227,17 @@ public static class CalculationLogService
   AppendPercent(text, "Basiszins Vorabpauschale", s.AdvanceLumpSumBaseRate);
 
   AppendValue(text, "Strategie", s.Strategy);
-  AppendPercent(text, "Aufteilung Tages-/Festgeld", allocation.Cash);
-  AppendPercent(text, "Aufteilung Welt-ETF", allocation.WorldEtf);
-  AppendPercent(text, "Aufteilung Dividenden-ETF", allocation.DividendEtf);
-  AppendPercent(text, "Aufteilung Dividenden-Aktien", allocation.DividendStocks);
+  AppendPercent(text, "Gewünschte Aufteilung Sichere Anlage", allocation.Cash);
+  AppendPercent(text, "Gewünschte Aufteilung Welt-ETF", allocation.WorldEtf);
+  AppendPercent(text, "Gewünschte Aufteilung Dividenden-ETF", allocation.DividendEtf);
+  AppendPercent(text, "Gewünschte Aufteilung Dividenden-Aktien", allocation.DividendStocks);
+
+  StrategyAllocation initialAllocation =
+   ProjectionService.GetInitialAllocation(s, allocation);
+  AppendPercent(text, "Tatsächliche Startaufteilung Sichere Anlage", initialAllocation.Cash);
+  AppendPercent(text, "Tatsächliche Startaufteilung Welt-ETF", initialAllocation.WorldEtf);
+  AppendPercent(text, "Tatsächliche Startaufteilung Dividenden-ETF", initialAllocation.DividendEtf);
+  AppendPercent(text, "Tatsächliche Startaufteilung Dividenden-Aktien", initialAllocation.DividendStocks);
 
   AppendValue(text, "Crash am Anfang", s.StressCrashAtStart ? "Ja" : "Nein");
   AppendPercent(text, "Crash-Stärke am Anfang", s.StressCrashPercent);
@@ -187,7 +251,12 @@ public static class CalculationLogService
 
   AppendMoney(text, "Hauswert", s.HouseTotalValue);
   AppendPercent(text, "Gebäudeanteil Haus", s.HouseBuildingShare);
-  AppendPercent(text, "Haus-Instandhaltungsrate", s.HouseReserveRate);
+  AppendValue(text, "Wohnfläche Immobilie m²", s.HouseLivingArea.ToString("N2", GermanCulture));
+  AppendValue(text, "Alter Immobilie aktuell", s.HouseAge);
+  AppendValue(text, "Haus-Instandhaltung Basisjahr", ProjectionService.HouseMaintenanceBaseYear);
+  AppendMoney(text, "Haus-Instandhaltung Richtwert < 22 Jahre je m² p.a.", ProjectionService.HouseMaintenanceRateUnder22);
+  AppendMoney(text, "Haus-Instandhaltung Richtwert ab 22 Jahre je m² p.a.", ProjectionService.HouseMaintenanceRateFrom22);
+  AppendMoney(text, "Haus-Instandhaltung Richtwert ab 32 Jahre je m² p.a.", ProjectionService.HouseMaintenanceRateFrom32);
   AppendMoney(text, "Auto-Ersatzwert", s.CarReplacementValue);
   AppendValue(text, "Auto-Ersatz nach Jahren", s.CarReplacementYears);
   AppendMoney(text, "Gesundheitsrücklage", s.HealthReserveTarget);
@@ -274,6 +343,20 @@ public static class CalculationLogService
   AppendPercent(text, "Eingabe RV-Brutto-Steigerung p.a.", diagnostics.EnteredPensionableAnnualGrossIncreaseRate);
   AppendPercent(text, "Eingabe Durchschnittsentgelt-Steigerung p.a.", diagnostics.EnteredAverageAnnualEarningsIncreaseRate);
   AppendMoney(text, "Verwendete heutige Rentenanwartschaft mtl.", diagnostics.CurrentPensionMonthlyUsed);
+
+  if (diagnostics.EnteredCurrentPensionPoints > 0m &&
+      diagnostics.EnteredCurrentPensionMonthly > 0m)
+  {
+   decimal impliedPensionValue =
+    diagnostics.EnteredCurrentPensionMonthly /
+    diagnostics.EnteredCurrentPensionPoints;
+
+   AppendMoney(
+    text,
+    "Aus Eingabe-Rente / Entgeltpunkten abgeleiteter Rentenwert",
+    impliedPensionValue);
+  }
+
   AppendValue(text, "Arbeitsende Jahr", workEndYear);
   AppendValue(text, "Arbeitsende Alter rechnerisch", diagnostics.WorkEndAge);
   AppendValue(text, "Geplanter Rentenbeginn Alter", retirementAge);
@@ -337,19 +420,63 @@ public static class CalculationLogService
   AppendMoney(text, "GKV/Pflege Beitragsbemessungsgrenze angewendet mtl.", y.HealthInsuranceMaximumMonthlyIncomeApplied);
   AppendPercent(text, "GKV-Zusatzbeitrag angewendet", y.HealthInsuranceAdditionalRateApplied);
   AppendPercent(text, "Pflegeversicherung angewendet", y.CareInsuranceRateApplied);
+  AppendValue(
+   text,
+   "Alter Immobilie in diesem Jahr",
+   ProjectionService.GetHouseAgeAtYear(settings, y.Year));
+  AppendMoney(
+   text,
+   "Haus-Instandhaltung Richtwert je m² p.a. vor Inflation",
+   ProjectionService.GetHouseMaintenanceRatePerSquareMeter(
+    ProjectionService.GetHouseAgeAtYear(settings, y.Year)));
+  AppendMoney(text, "Haus-Instandhaltung p.a.", y.HouseMaintenanceExpense);
+  AppendMoney(text, "Auto-Ersatz in diesem Jahr", y.CarReplacementExpense);
   AppendMoney(text, "Gesamtbedarf p.a.", y.TotalAnnualNeed);
   AppendCheck(
    text,
-   "Gesamtbedarf = Lebenshaltung + GKV/Pflege",
+   "Gesamtbedarf = Lebenshaltung + GKV/Pflege + Haus-Instandhaltung + Auto-Ersatz",
    y.TotalAnnualNeed,
-   y.LivingCosts + y.HealthCareCosts);
+   y.LivingCosts +
+   y.HealthCareCosts +
+   y.HouseMaintenanceExpense +
+   y.CarReplacementExpense);
 
   text.AppendLine("[Rente / Einkommen]");
   AppendMoney(text, "Rente brutto p.a.", y.PensionGross);
   AppendMoney(text, "Rente Person 1 brutto p.a.", y.PensionPerson1Gross);
   if (settings.HouseholdPersonCount == 2)
    AppendMoney(text, "Rente Person 2 brutto p.a.", y.PensionPerson2Gross);
-  AppendMoney(text, "Rentenabzüge GKV/Zusatz/Pflege p.a.", y.PensionHealthAndCareDeductions);
+
+  AppendMoney(text, "Rentenabzüge GKV/Zusatz/Pflege Person 1 p.a.", y.PensionHealthAndCareDeductionsPerson1);
+  if (settings.HouseholdPersonCount == 2)
+   AppendMoney(text, "Rentenabzüge GKV/Zusatz/Pflege Person 2 p.a.", y.PensionHealthAndCareDeductionsPerson2);
+  AppendMoney(text, "Rentenabzüge GKV/Zusatz/Pflege gesamt p.a.", y.PensionHealthAndCareDeductions);
+
+  if (y.PensionPerson1Gross > 0m)
+  {
+   AppendValue(text, "Rentenbeginn Jahr Person 1", y.PensionStartYearPerson1);
+   AppendPercent(text, "Besteuerungsanteil Person 1", y.PensionTaxableSharePerson1);
+   AppendMoney(text, "Fester steuerfreier Rentenbetrag Person 1 p.a.", y.PensionFixedTaxFreeAmountPerson1);
+   AppendMoney(text, "Zu versteuerndes Renteneinkommen Person 1 p.a.", y.PensionTaxableIncomePerson1);
+  }
+
+  if (settings.HouseholdPersonCount == 2 &&
+      y.PensionPerson2Gross > 0m)
+  {
+   AppendValue(text, "Rentenbeginn Jahr Person 2", y.PensionStartYearPerson2);
+   AppendPercent(text, "Besteuerungsanteil Person 2", y.PensionTaxableSharePerson2);
+   AppendMoney(text, "Fester steuerfreier Rentenbetrag Person 2 p.a.", y.PensionFixedTaxFreeAmountPerson2);
+   AppendMoney(text, "Zu versteuerndes Renteneinkommen Person 2 p.a.", y.PensionTaxableIncomePerson2);
+  }
+
+  AppendValue(
+   text,
+   "Steuertarif-Fortschreibungsfaktor ab 2026",
+   y.PensionTaxTariffFactor.ToString("N6", GermanCulture));
+  AppendMoney(text, "Projizierter Grundfreibetrag je Person", y.PensionProjectedBasicAllowance);
+  AppendMoney(text, "Einkommensteuer vor Zuschlagsteuern p.a.", y.PensionIncomeTaxBeforeSurcharges);
+  AppendMoney(text, "Solidaritätszuschlag auf Renteneinkommen p.a.", y.PensionSolidaritySurcharge);
+  AppendMoney(text, "Kirchensteuer auf Renteneinkommen p.a.", y.PensionChurchTax);
   AppendMoney(text, "Rentensteuer inkl. Zuschlagsteuern p.a.", y.PensionIncomeTax);
   AppendMoney(text, "Rente netto p.a.", y.PensionNet);
   AppendCheck(
@@ -393,26 +520,29 @@ public static class CalculationLogService
 
   text.AppendLine("[Reserve / Rücklagen]");
   AppendMoney(text, "Reserve Soll", y.ReserveTarget);
-  AppendMoney(text, "Reserve Ist / Tages-/Festgeld Ende", y.ReserveActual);
-  AppendMoney(text, "Haus-Rücklage Soll", y.HouseReserveTarget);
-  AppendMoney(text, "Auto-Rücklage Soll", y.CarReserveTarget);
+  AppendMoney(text, "Reserve Ist / Sichere Anlage Ende", y.ReserveActual);
+  AppendMoney(text, "Haus-Instandhaltung bereits als Ausgabe berücksichtigt", y.HouseMaintenanceExpense);
+  AppendMoney(text, "Auto-Ersatz bereits als Ausgabe berücksichtigt", y.CarReplacementExpense);
   AppendMoney(text, "Gesundheitsrücklage Soll", y.HealthReserveTarget);
   AppendMoney(text, "Reiserücklage Soll", y.TravelReserveTarget);
   AppendMoney(text, "Sonstige Rücklage Soll", y.OtherReserveTarget);
+  decimal recurringAnnualNeed =
+   y.LivingCosts +
+   y.HealthCareCosts +
+   y.HouseMaintenanceExpense;
+
   AppendCheck(
    text,
-   "Reserve Soll = Gesamtbedarf x Reservejahre + Einzelrücklagen",
+   "Reserve Soll = wiederkehrender Jahresbedarf x Reservejahre + verbleibende Zielrücklagen",
    y.ReserveTarget,
-   y.TotalAnnualNeed * settings.ReserveYears +
-   y.HouseReserveTarget +
-   y.CarReserveTarget +
+   recurringAnnualNeed * settings.ReserveYears +
    y.HealthReserveTarget +
    y.TravelReserveTarget +
    y.OtherReserveTarget);
 
   text.AppendLine("[Vermögen]");
   AppendMoney(text, "Vermögen Jahresanfang", y.TotalPortfolioStart);
-  AppendMoney(text, "Tages-/Festgeld Ende", y.CashEnd);
+  AppendMoney(text, "Sichere Anlage Ende", y.CashEnd);
   AppendMoney(text, "Welt-ETF Ende", y.WorldEtfEnd);
   AppendMoney(text, "Dividenden-ETF Ende", y.DividendEtfEnd);
   AppendMoney(text, "Dividenden-Aktien Ende", y.DividendStocksEnd);
@@ -424,7 +554,7 @@ public static class CalculationLogService
    y.CashEnd + y.WorldEtfEnd + y.DividendEtfEnd + y.DividendStocksEnd);
 
   text.AppendLine("[Ertragsbeiträge]");
-  AppendMoney(text, "Tages-/Festgeld Ertrag", y.CashReturnContribution);
+  AppendMoney(text, "Sichere Anlage Ertrag", y.CashReturnContribution);
   AppendMoney(text, "Welt-ETF Gesamtertrag", y.WorldReturnContribution);
   AppendMoney(text, "Welt-ETF davon Kursanteil", y.WorldPriceReturnContribution);
   AppendMoney(text, "Welt-ETF davon Ausschüttung", y.WorldDistributionContribution);

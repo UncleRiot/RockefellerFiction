@@ -18,7 +18,7 @@ public static class CalculationDocumentationService
   text.AppendLine("Statt C#-Sourcecode werden die wichtigsten Rechenwege in verständlicher Form mit den aktuell verwendeten Werten, Zwischenergebnissen und Formeln angezeigt.");
   text.AppendLine("Die Renten- und GKV/Pflege-Beispiele werden direkt über PensionService berechnet. Dadurch entsprechen ihre angezeigten Zwischenergebnisse der tatsächlich verwendeten Berechnungslogik.");
   text.AppendLine("Allgemeine Modellregeln werden zusätzlich mit der jeweils verantwortlichen Methode benannt, damit Abweichungen zwischen Beschreibung und Berechnung gezielt geprüft werden können.");
-  text.AppendLine("Stand der externen Quellenprüfung: 24.08.2026.");
+  text.AppendLine("Stand der externen Quellenprüfung: 25.08.2026.");
   text.AppendLine();
 
   AppendCurrentValues(text, settings, allocation);
@@ -74,15 +74,25 @@ public static class CalculationDocumentationService
   text.AppendLine($"Basiszins Vorabpauschale = {settings.AdvanceLumpSumBaseRate:P2}");
   text.AppendLine();
 
-  text.AppendLine("Anlageaufteilung:");
-  text.AppendLine($"Tages-/Festgeld = {allocation.Cash:P2}");
+  StrategyAllocation initialAllocation =
+   ProjectionService.GetInitialAllocation(settings, allocation);
+
+  text.AppendLine("Gewünschte Strategie-Aufteilung:");
+  text.AppendLine($"Sichere Anlage = {allocation.Cash:P2}");
   text.AppendLine($"Welt-ETF = {allocation.WorldEtf:P2}");
   text.AppendLine($"Dividenden-ETF = {allocation.DividendEtf:P2}");
   text.AppendLine($"Dividenden-Aktien = {allocation.DividendStocks:P2}");
   text.AppendLine();
+  text.AppendLine("Tatsächliche Startaufteilung unter Erhalt bestehender Anlagen:");
+  text.AppendLine($"Sichere Anlage = {initialAllocation.Cash:P2}");
+  text.AppendLine($"Welt-ETF = {initialAllocation.WorldEtf:P2}");
+  text.AppendLine($"Dividenden-ETF = {initialAllocation.DividendEtf:P2}");
+  text.AppendLine($"Dividenden-Aktien = {initialAllocation.DividendStocks:P2}");
+  text.AppendLine();
 
   text.AppendLine("Renditen/Ausschüttungen:");
-  text.AppendLine($"Tages-/Festgeld Zins = {settings.CashInterestRate:P2}");
+  text.AppendLine($"Sichere Anlage aktueller Stand = {settings.SecureInvestmentCurrentValue:N2} €");
+  text.AppendLine($"Sichere Anlage Zins = {settings.CashInterestRate:P2}");
   text.AppendLine($"Welt-ETF aktueller Stand = {settings.WorldEtfCurrentValue:N2} €");
   text.AppendLine($"Welt-ETF besteht seit = {settings.WorldEtfStartYear}");
   text.AppendLine($"Welt-ETF bisherige Durchschnittsrendite = {settings.WorldEtfHistoricalReturn:P2}");
@@ -126,19 +136,19 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "4. Rente und vereinfachte Rentensteuer",
-   "Vor dem jeweiligen geplanten Rentenalter wird keine gesetzliche Rente angesetzt. Wenn Entgeltpunkte eingetragen sind, bildet die App die heutige Rentenanwartschaft aus Entgeltpunkten × aktuellem Rentenwert 2026. Ohne Entgeltpunkte bleibt die eingegebene heute bereits erworbene Monatsrente die Ausgangsbasis. Wenn ein RV-pflichtiges Jahresbrutto eingetragen ist, werden die zusätzlich bis zum Arbeitsende entstehenden Entgeltpunkte für jedes Beitragsjahr einzeln berechnet. Dabei werden Brutto, Durchschnittsentgelt und Beitragsbemessungsgrenze mit den jeweiligen Einstellungen fortgeschrieben. Ohne RV-Brutto wird die DRV-Hochrechnung bis 67 als Fallback verwendet und nur anteilig bis zum tatsächlichen Beitragsende berücksichtigt. Das Beitragsende ist der früheste Zeitpunkt aus Arbeitsende, geplantem Rentenbeginn und Alter 67. Beginnt die Rente vor 67, werden 0,3 % je vorgezogenem Monat, höchstens 14,4 %, dauerhaft abgezogen. Danach wird die eingestellte Rentensteigerung bis zum jeweiligen Simulationsjahr angewendet. KV/PV und die vereinfachte Rentensteuer werden anschließend wie im PensionService berechnet.",
+   "Vor dem jeweiligen geplanten Rentenalter wird keine gesetzliche Rente angesetzt. Wenn Entgeltpunkte eingetragen sind, bildet die App die heutige Rentenanwartschaft aus Entgeltpunkten × aktuellem Rentenwert 2026 (42,52 €). Die zusätzlich eingegebene heute bereits erworbene Monatsrente bleibt dann ein Referenzwert aus der Renteninformation und wird nicht als zweite gleichberechtigte Rentenbasis addiert. Ohne Entgeltpunkte bleibt die eingegebene heute bereits erworbene Monatsrente die Ausgangsbasis. Wenn ein RV-pflichtiges Jahresbrutto eingetragen ist, werden die zusätzlich bis zum Arbeitsende entstehenden Entgeltpunkte für jedes Beitragsjahr einzeln berechnet. Dabei werden Brutto, Durchschnittsentgelt und Beitragsbemessungsgrenze mit den jeweiligen Einstellungen fortgeschrieben. Ohne RV-Brutto wird die DRV-Hochrechnung bis 67 als Fallback verwendet und nur anteilig bis zum tatsächlichen Beitragsende berücksichtigt. Sind dabei Entgeltpunkte und die in derselben Renteninformation ausgewiesene bereits erworbene Monatsrente vorhanden, wird aus Monatsrente / Entgeltpunkten der in dieser Renteninformation enthaltene Rentenwert abgeleitet; nur der aus der DRV-Hochrechnung stammende zusätzliche Rentenanteil wird damit auf den aktuellen Rentenwert 2026 umgerechnet. Dadurch werden ältere Renteninformationen nicht mit zwei unterschiedlichen Rentenwert-Ständen vermischt. Das Beitragsende ist der früheste Zeitpunkt aus Arbeitsende, geplantem Rentenbeginn und Alter 67. Für einen geplanten Rentenbeginn vor 67 prüft die App zusätzlich, ob die bisher eingetragenen Versicherungsjahre zuzüglich der weiteren Jahre bis zum Arbeitsende mindestens 35 Jahre ergeben. Beginnt die Rente vor 67, werden 0,3 % je vorgezogenem Monat, höchstens 14,4 %, dauerhaft abgezogen. Die eingestellte Rentensteigerung bildet anschließend die angenommene Entwicklung des Rentenwerts bis zum jeweiligen Simulationsjahr ab; sie ist nicht identisch mit der Entwicklung des Durchschnittsentgelts, die für neu erworbene Entgeltpunkte verwendet wird. Für die Einkommensteuer verwendet die App den gesetzlich feststehenden Tarif 2026 als Basis. Die frühere automatische Kopplung der künftigen Tarifeckwerte und Soli-Freigrenzen an die allgemeine Inflation wurde entfernt. Stattdessen wird ausschließlich die separat eingestellte Steuertarif-/Grundfreibetrag-Steigerung verwendet. Der Standardwert 0 % bedeutet: keine nicht gesetzlich feststehende zukünftige Tarifanhebung wird unterstellt. Ein eigener Wert ist ausdrücklich eine Planungsannahme. KV/PV und die vereinfachte Rentensteuer werden anschließend wie im PensionService berechnet. Das Berechnungsprotokoll weist pro Jahr Rentenbrutto, KV/PV-Abzug, Besteuerungsanteil, festen steuerfreien Rentenbetrag, zu versteuerndes Renteneinkommen, Tarif-Fortschreibungsfaktor, projizierten Grundfreibetrag, Einkommensteuer, Solidaritätszuschlag und Kirchensteuer getrennt aus.",
    "PensionService.CalculatePensionProjectionDiagnostics / PensionService.CalculateAnnualPension / PensionService.CalculateProjectedIncomeTaxIncludingSurcharges");
 
   AppendSection(
    text,
-   "5. Reserve und Rücklagen",
-   "Der Reserve-Sollwert setzt sich aus der gewünschten sicheren Reserve in Jahresausgaben sowie den Haus-, Auto-, Gesundheits-, Reise- und sonstigen Rücklagen zusammen. Lebenshaltung, heutiger Hauswert, heutiger Auto-Ersatzwert sowie die heutigen Zielbeträge für Gesundheit/Zahnersatz, Reisen/größere Wünsche und Sonstiges/Unvorhergesehenes werden vom aktuellen Kalenderjahr bis zum jeweiligen Simulationsjahr mit der eingetragenen Inflation fortgeschrieben.",
-   "ProjectionService.Calculate");
+   "5. Reserve, Rücklagen und reale Haus-/Autoausgaben",
+   "Die jährliche Haus-Instandhaltung wird als echte Ausgabe behandelt. Grundlage sind Wohnfläche und das im jeweiligen Simulationsjahr erreichte Alter der Immobilie. Verwendet werden die Richtwerte Stand 2026 nach § 28 Abs. 5a II. BV: unter 22 Jahren 11,49 €/m² p.a., ab 22 Jahren 14,58 €/m² p.a. und ab 32 Jahren 18,62 €/m² p.a. Das Gebäudealter läuft während der Simulation automatisch weiter. Die Richtwerte werden ab Basisjahr 2026 mit der eingestellten Inflation bis zum jeweiligen Simulationsjahr fortgeschrieben. Der Auto-Ersatz bleibt eine punktuelle echte Ausgabe im jeweiligen Ersatzjahr. Der sichere Reserve-Sollwert verwendet den wiederkehrenden Jahresbedarf aus Lebenshaltung, freiwilliger GKV/Pflege und Haus-Instandhaltung multipliziert mit den Reservejahren. Gesundheits-, Reise- und sonstige Zielrücklagen werden zusätzlich gehalten.",
+   "ProjectionService.Calculate / ProjectionService.CalculateHouseMaintenanceExpense");
 
   AppendSection(
    text,
    "6. Anlageerträge und Ausschüttungen",
-   "Das Startvermögen und die unter „Bestehende Depots“ eingetragenen Depotwerte gelten zum Simulationsstart, der automatisch dem Arbeitsende von Person 1 entspricht. Diese bestehenden Bestände werden unverändert als Anfangsbestände übernommen. Nur der nach Abzug von Welt-ETF, Dividenden-ETF und Dividenden-Aktien verbleibende Teil des Startvermögens wird gemäß der eingestellten Strategie auf Tages-/Festgeld, Welt-ETF, Dividenden-ETF und Dividenden-Aktien verteilt. Für neu zugeteilte Depotbeträge entspricht der steuerliche Einstandswert dem neu angelegten Betrag; für bestehende Depotbestände wird der Einstandswert aus Depotwert am Simulationsstart, Startjahr und bisheriger Durchschnittsrendite bis zum Simulationsstart geschätzt. Die Erträge werden aus den so gebildeten Beständen und den hinterlegten Sätzen berechnet. Ausschüttungen werden getrennt vom im Bestand verbleibenden Kurs-/Gesamtertrag behandelt.",
+   "Das Startvermögen und die unter „Vermögen“ eingetragenen Anlagewerte gelten zum Simulationsstart, der automatisch dem Arbeitsende von Person 1 entspricht. Bestehende Anlagebestände werden nicht verkauft oder reduziert. Die gewählte Strategie beschreibt die gewünschte Zielverteilung des gesamten Startvermögens. Der noch nicht zugeordnete Teil des Startvermögens wird proportional zu den noch offenen Zielabständen auf die untergewichteten Anlageklassen verteilt. Liegt ein bestehender Depotbestand bereits über seinem Zielwert, erhält diese Anlageklasse kein zusätzliches Kapital; die tatsächliche Startaufteilung darf deshalb von der Zielverteilung abweichen. Für neu zugeteilte Depotbeträge entspricht der steuerliche Einstandswert dem neu angelegten Betrag; für bestehende Depotbestände wird der Einstandswert aus Depotwert am Simulationsstart, Startjahr und bisheriger Durchschnittsrendite bis zum Simulationsstart geschätzt. Die Erträge werden aus den so gebildeten Beständen und den hinterlegten Sätzen berechnet. Ausschüttungen werden getrennt vom im Bestand verbleibenden Kurs-/Gesamtertrag behandelt.",
    "ProjectionService.Calculate");
 
   AppendSection(
@@ -162,13 +172,13 @@ public static class CalculationDocumentationService
   AppendSection(
    text,
    "10. Finanzierung des Jahresbedarfs",
-   "Der Jahresbedarf wird zuerst durch Nettorente gedeckt. Solange Person 2 vor ihrem eigenen Arbeitsende noch arbeitet, wird anschließend ihr aktuelles monatliches Nettoeinkommen mit der eingetragenen jährlichen Steigerung berücksichtigt. Danach folgen einmalige Einnahmen und Ausschüttungen. Reicht das nicht, wird Tages-/Festgeld verwendet. Danach wird proportional aus den drei Aktien-/ETF-Bausteinen entnommen. Ein Rest wird als Finanzierungslücke ausgewiesen. Nicht benötigtes Nettoeinkommen von Person 2 wird dem sicheren Geldanteil zugeschlagen.",
+   "Der Jahresbedarf enthält Lebenshaltung, freiwillige GKV/Pflege, die jährliche Haus-Instandhaltung und in den fälligen Jahren den vollständigen inflationsangepassten Auto-Ersatz. Er wird zuerst durch Nettorente gedeckt. Solange Person 2 vor ihrem eigenen Arbeitsende noch arbeitet, wird anschließend ihr aktuelles monatliches Nettoeinkommen mit der eingetragenen jährlichen Steigerung berücksichtigt. Danach folgen einmalige Einnahmen und Ausschüttungen. Reicht das nicht, wird die sichere Anlage verwendet. Danach wird proportional aus den drei Aktien-/ETF-Bausteinen entnommen. Ein Rest wird als Finanzierungslücke ausgewiesen. Nicht benötigtes Nettoeinkommen von Person 2 wird der sicheren Anlage zugeschlagen.",
    "ProjectionService.Calculate");
 
   AppendSection(
    text,
    "11. Reserve wieder auffüllen",
-   "Ist die automatische Auffüllung aktiv und Tages-/Festgeld liegt unter dem Soll, wird Geld proportional aus den Aktien-/ETF-Bausteinen in den sicheren Anteil verschoben. Bei aktivierter Schutzregel wird das in negativen Aktienjahren nicht erzwungen.",
+   "Ist die automatische Auffüllung aktiv und Sichere Anlage liegt unter dem Soll, wird Geld proportional aus den Aktien-/ETF-Bausteinen in den sicheren Anteil verschoben. Bei aktivierter Schutzregel wird das in negativen Aktienjahren nicht erzwungen.",
    "ProjectionService.Calculate");
 
   AppendSection(
@@ -282,6 +292,16 @@ public static class CalculationDocumentationService
 
   text.AppendLine(
    $"Arbeitsende-Alter rechnerisch = {diagnostics.WorkEndAge}; geplantes Rentenalter = {retirementAge}; Beitragsende-Alter = {diagnostics.ContributionEndAge}.");
+  int currentInsuranceYears = person1
+   ? settings.Person1CurrentInsuranceYears
+   : settings.Person2CurrentInsuranceYears;
+  int insuranceYearsAtWorkEnd =
+   PensionService.CalculateInsuranceYearsAtWorkEnd(
+    currentInsuranceYears,
+    workEndYear);
+
+  text.AppendLine(
+   $"Versicherungsjahre: bisher {currentInsuranceYears}; bis Arbeitsende rechnerisch {insuranceYearsAtWorkEnd}; Mindestwert für Rentenbeginn vor 67 = {PensionService.MinimumInsuranceYearsForEarlyRetirement}.");
   text.AppendLine(
    $"Zusätzliche Beitragsjahre = {diagnostics.AdditionalContributionYears} von maximal {diagnostics.YearsToRegularRetirement} Jahren bis 67.");
 
@@ -391,30 +411,29 @@ public static class CalculationDocumentationService
  {
   AppendSectionTitle(text, "Startvermögen und Anlageaufteilung");
 
-  decimal existingDepotTotal =
+  decimal existingInvestmentTotal =
+   settings.SecureInvestmentCurrentValue +
    settings.WorldEtfCurrentValue +
    settings.DividendEtfCurrentValue +
    settings.DividendStocksCurrentValue;
-  decimal strategyCapital =
-   Math.Max(0m, settings.StartCapital - existingDepotTotal);
 
-  decimal cash = strategyCapital * allocation.Cash;
-  decimal worldNew = strategyCapital * allocation.WorldEtf;
-  decimal dividendEtfNew = strategyCapital * allocation.DividendEtf;
-  decimal dividendStocksNew = strategyCapital * allocation.DividendStocks;
+  decimal cashTarget = settings.StartCapital * allocation.Cash;
+  decimal worldTarget = settings.StartCapital * allocation.WorldEtf;
+  decimal dividendEtfTarget = settings.StartCapital * allocation.DividendEtf;
+  decimal dividendStocksTarget = settings.StartCapital * allocation.DividendStocks;
 
   text.AppendLine(
-   $"Bestehende Depots = {settings.WorldEtfCurrentValue:N2} € Welt-ETF + {settings.DividendEtfCurrentValue:N2} € Dividenden-ETF + {settings.DividendStocksCurrentValue:N2} € Dividenden-Aktien = {existingDepotTotal:N2} €.");
+   $"Startvermögen = {settings.StartCapital:N2} € = 100 % der Anlageaufteilung.");
   text.AppendLine(
-   $"Neu nach Strategie aufzuteilendes Kapital = {settings.StartCapital:N2} € Startvermögen - {existingDepotTotal:N2} € bestehende Depots = {strategyCapital:N2} €.");
+   $"Bestehende Anlagen = {settings.SecureInvestmentCurrentValue:N2} € sichere Anlage + {settings.WorldEtfCurrentValue:N2} € Welt-ETF + {settings.DividendEtfCurrentValue:N2} € Dividenden-ETF + {settings.DividendStocksCurrentValue:N2} € Dividenden-Aktien = {existingInvestmentTotal:N2} €. Diese Werte sind bereits im Startvermögen enthalten.");
   text.AppendLine(
-   $"Tages-/Festgeld neu = {strategyCapital:N2} € × {allocation.Cash:P2} = {cash:N2} €.");
+   $"Sichere Anlage Zielbetrag = {cashTarget:N2} € ({allocation.Cash:P2}); davon bereits vorhanden: {settings.SecureInvestmentCurrentValue:N2} €.");
   text.AppendLine(
-   $"Welt-ETF neu = {strategyCapital:N2} € × {allocation.WorldEtf:P2} = {worldNew:N2} €.");
+   $"Welt-ETF Zielbetrag = {worldTarget:N2} € ({allocation.WorldEtf:P2}); davon bereits vorhanden: {settings.WorldEtfCurrentValue:N2} €.");
   text.AppendLine(
-   $"Dividenden-ETF neu = {strategyCapital:N2} € × {allocation.DividendEtf:P2} = {dividendEtfNew:N2} €.");
+   $"Dividenden-ETF Zielbetrag = {dividendEtfTarget:N2} € ({allocation.DividendEtf:P2}); davon bereits vorhanden: {settings.DividendEtfCurrentValue:N2} €.");
   text.AppendLine(
-   $"Dividenden-Aktien neu = {strategyCapital:N2} € × {allocation.DividendStocks:P2} = {dividendStocksNew:N2} €.");
+   $"Dividenden-Aktien Zielbetrag = {dividendStocksTarget:N2} € ({allocation.DividendStocks:P2}); davon bereits vorhanden: {settings.DividendStocksCurrentValue:N2} €.");
   text.AppendLine();
   AppendReferenceSources(text, "Startvermögen und Anlageaufteilung");
  }
@@ -432,14 +451,25 @@ public static class CalculationDocumentationService
 
   decimal living =
    settings.MonthlyLivingCosts * 12m * inflationFactor;
-  decimal houseReserve =
-   settings.HouseTotalValue *
-   settings.HouseBuildingShare *
-   settings.HouseReserveRate *
-   inflationFactor;
-  decimal carReserve =
-   (settings.CarReplacementValue / Math.Max(1, settings.CarReplacementYears)) *
-   inflationFactor;
+  int houseAgeAtPlanning =
+   ProjectionService.GetHouseAgeAtYear(settings, settings.PlanningYear);
+  decimal houseRatePerSquareMeter =
+   ProjectionService.GetHouseMaintenanceRatePerSquareMeter(houseAgeAtPlanning);
+  decimal houseMaintenanceExpense =
+   ProjectionService.CalculateHouseMaintenanceExpense(settings, settings.PlanningYear);
+  int houseMaintenanceInflationYears =
+   Math.Max(0, settings.PlanningYear - ProjectionService.HouseMaintenanceBaseYear);
+  decimal houseMaintenanceInflationFactor =
+   Pow(1m + settings.InflationRate, houseMaintenanceInflationYears);
+  int carReplacementIntervalYears = Math.Max(1, settings.CarReplacementYears);
+  int firstCarReplacementYear =
+   settings.PlanningYear +
+   carReplacementIntervalYears;
+  int yearsToFirstCarReplacement =
+   Math.Max(0, firstCarReplacementYear - DateTime.Today.Year);
+  decimal firstCarReplacementExpense =
+   settings.CarReplacementValue *
+   Pow(1m + settings.InflationRate, yearsToFirstCarReplacement);
   decimal healthReserve =
    settings.HealthReserveTarget * inflationFactor;
   decimal travelReserve =
@@ -448,11 +478,11 @@ public static class CalculationDocumentationService
    settings.OtherReserveTarget * inflationFactor;
 
   text.AppendLine(
-   $"Sichere Reserve aus Lebenshaltung = Jahresbedarf × {settings.ReserveYears:N2} Reservejahre.");
+   $"Sichere Reserve = wiederkehrender Jahresbedarf × {settings.ReserveYears:N2} Reservejahre. Zum wiederkehrenden Jahresbedarf zählen Lebenshaltung, freiwillige GKV/Pflege und die jährliche Haus-Instandhaltung.");
   text.AppendLine(
-   $"Haus-Rücklage = {settings.HouseTotalValue:N2} € × {settings.HouseBuildingShare:P2} Gebäudeanteil × {settings.HouseReserveRate:P2} × Inflationsfaktor = {houseReserve:N2} € pro Jahr.");
+   $"Haus-Instandhaltung im Simulationsstartjahr = {settings.HouseLivingArea:N2} m² × {houseRatePerSquareMeter:N2} €/m² p.a. bei Immobilienalter {houseAgeAtPlanning} Jahre × Inflationsfaktor {houseMaintenanceInflationFactor:N4} ab Basisjahr {ProjectionService.HouseMaintenanceBaseYear} = {houseMaintenanceExpense:N2} € echte Ausgabe.");
   text.AppendLine(
-   $"Auto-Rücklage = {settings.CarReplacementValue:N2} € / {Math.Max(1, settings.CarReplacementYears)} Jahre × Inflationsfaktor = {carReserve:N2} € pro Jahr.");
+   $"Auto-Ersatz: erster Ersatz {firstCarReplacementYear} (= Simulationsstart {settings.PlanningYear} + {carReplacementIntervalYears} Jahre), danach jeweils wieder nach {carReplacementIntervalYears} Jahren. Inflationsangepasster erster Ersatzwert = {firstCarReplacementExpense:N2} €.");
   text.AppendLine(
    $"Gesundheit/Zahnersatz Zielwert zum Simulationsstart = {healthReserve:N2} €.");
   text.AppendLine(
@@ -460,7 +490,7 @@ public static class CalculationDocumentationService
   text.AppendLine(
    $"Sonstiges/Unvorhergesehenes Zielwert zum Simulationsstart = {otherReserve:N2} €.");
   text.AppendLine(
-   "Der endgültige Reserve-Sollwert verwendet im jeweiligen Simulationsjahr den tatsächlichen Jahresbedarf einschließlich der dort berechneten freiwilligen GKV/Pflege.");
+   "Der endgültige Reserve-Sollwert verwendet den wiederkehrenden Jahresbedarf einschließlich freiwilliger GKV/Pflege und Haus-Instandhaltung. Der punktuelle Auto-Ersatz wird im Fälligkeitsjahr als echte Ausgabe finanziert, aber nicht mit den Reservejahren multipliziert.");
   text.AppendLine();
   AppendReferenceSources(text, "Reserve und Rücklagen");
  }
@@ -619,13 +649,24 @@ public static class CalculationDocumentationService
     break;
 
    case "5. Reserve und Rücklagen":
+   case "5. Reserve, Rücklagen und reale Haus-/Autoausgaben":
    case "Reserve und Rücklagen":
-    AppendModelSource(text, "ProjectionService.cs", "Reservehöhe und Rücklagenlogik sind Modellannahmen der App.");
+    AppendModelSource(text, "ProjectionService.cs", "Reservehöhe, Auto-Ersatz und die Fortschreibung der Haus-Instandhaltung sind Modellregeln der App.");
+    AppendExternalSource(
+     text,
+     "KSK-Immobilien – Instandhaltungsrücklage; Richtwerte nach § 28 Abs. 5a II. BV, Stand 2026",
+     "https://www.ksk-immobilien.de/wissen-ratgeber/lexikon/instandhaltungsruecklage/",
+     "2026: 11,49 / 14,58 / 18,62 € je m² und Jahr für <22 / ≥22 / ≥32 Jahre; URL geprüft am 25.08.2026");
+    AppendExternalSource(
+     text,
+     "Wüstenrot – Instandhaltungsrücklage: Höhe und Berechnung",
+     "https://www.wuestenrot.de/modernisieren/instandhaltungsruecklage",
+     "Altersabhängige Richtwertmethodik quergeprüft; URL geprüft am 25.08.2026");
     AppendExternalSource(
      text,
      "Statistisches Bundesamt – Verbraucherpreisindex und Inflationsrate",
      "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html",
-     "Stand der Seite: 12.08.2026; URL geprüft am 24.08.2026");
+     "Stand der Seite: 12.08.2026; URL geprüft am 25.08.2026");
     break;
 
    case "1. Planungszeitraum":

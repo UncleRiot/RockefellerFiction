@@ -24,6 +24,68 @@ public partial class WizardWindow : Window
  private bool _expertEnabled;
  private bool _returnToSummaryAfterEdit;
 
+ private static readonly Dictionary<string, int> RegularFieldNumbers =
+  new(StringComparer.Ordinal)
+  {
+   ["Haushalt"] = 1,
+   ["Aktuelles Alter Person 1"] = 2,
+   ["Vorzeitiges Arbeitsende Person 1"] = 3,
+   ["Aktuelles Alter Person 2"] = 4,
+   ["Vorzeitiges Arbeitsende Person 2"] = 5,
+   ["Nettoeinkommen Person 2 pro Monat"] = 6,
+   ["Geplanter Beginn gesetzliche Altersrente Person 1"] = 8,
+   ["Geplanter Beginn gesetzliche Altersrente Person 2"] = 9,
+   ["Lebenserwartung Person 1"] = 10,
+   ["Lebenserwartung Person 2"] = 11,
+   ["Monatliche Ausgaben für das Leben"] = 12,
+   ["Inflation pro Jahr"] = 13,
+   ["Steuertarif / Grundfreibetrag Steigerung p.a."] = 14,
+   ["Sparer-Pauschbetrag Haushalt"] = 15,
+   ["Gemeinsame steuerliche Veranlagung"] = 16,
+   ["Kirchensteuer berücksichtigen"] = 17,
+   ["Kirchensteuersatz"] = 18,
+   ["Heute bereits erworbene Bruttorente Person 1"] = 19,
+   ["Heute bereits erworbene Bruttorente Person 2"] = 20,
+   ["DRV-Hochrechnung Person 1 bis 67"] = 21,
+   ["DRV-Hochrechnung Person 2 bis 67"] = 22,
+   ["Bisherige Versicherungsjahre Person 1"] = 23,
+   ["Bisherige Versicherungsjahre Person 2"] = 24,
+   ["Aktuelle Entgeltpunkte Person 1"] = 25,
+   ["Aktuelle Entgeltpunkte Person 2"] = 26,
+   ["RV-pflichtiges Jahresbrutto Person 1"] = 27,
+   ["RV-pflichtiges Jahresbrutto Person 2"] = 28,
+   ["RV-Brutto-Steigerung Person 1 p.a."] = 29,
+   ["RV-Brutto-Steigerung Person 2 p.a."] = 30,
+   ["Steigerung Durchschnittsentgelt Rentenversicherung p.a."] = 31,
+   ["Rentensteigerung pro Jahr"] = 32,
+   ["KVdR für Person 1 annehmen"] = 33,
+   ["KVdR für Person 2 annehmen"] = 34,
+   ["GKV Zusatzbeitrag"] = 38,
+   ["Pflegeversicherung Beitragssatz"] = 39,
+   ["Hauswert inkl. Grundstück"] = 46,
+   ["Anteil Gebäude am Hauswert"] = 47,
+   ["Wohnfläche der Immobilie in m²"] = 48,
+   ["Alter der Immobilie in Jahren"] = 49,
+   ["Ersatzwert Auto"] = 50,
+   ["Auto-Ersatz nach Jahren"] = 51,
+   ["Gesundheit / Zahnersatz Rücklage"] = 52,
+   ["Reisen / größere Wünsche Rücklage"] = 53,
+   ["Sonstiges / Unvorhergesehenes Rücklage"] = 54,
+   ["Verfügbares Startvermögen"] = 55,
+   ["Wert des vorhandenen Welt-ETF"] = 58,
+   ["Startjahr des vorhandenen Welt-ETF"] = 59,
+   ["Bisherige Durchschnittsrendite Welt-ETF"] = 60,
+   ["Wert des vorhandenen Dividenden-ETF"] = 63,
+   ["Startjahr des vorhandenen Dividenden-ETF"] = 64,
+   ["Bisherige Durchschnittsrendite Dividenden-ETF"] = 65,
+   ["Wert vorhandener Dividenden-Aktien"] = 68,
+   ["Startjahr der vorhandenen Dividenden-Aktien"] = 69,
+   ["Bisherige Durchschnittsrendite Dividenden-Aktien"] = 70,
+   ["Anlagestrategie"] = 74,
+   ["Sichere Reserve in Jahresausgaben"] = 75,
+   ["Crash-Stärke am Anfang"] = 80
+  };
+
  public PlannerSettings Settings => _settings;
  public StrategyAllocation Allocation => _allocation;
  public bool StartCalculation { get; private set; }
@@ -40,6 +102,14 @@ public partial class WizardWindow : Window
 
   _settings = SettingsClone.Clone(settings);
   _allocation = allocation;
+
+  if (_settings.CapitalGainsAllowance is 1000m or 2000m)
+  {
+   _settings.CapitalGainsAllowance =
+    _settings.HouseholdPersonCount == 1
+     ? 1000m
+     : 2000m;
+  }
 
   if (_settings.Person1WorkEndYear <= 0)
    _settings.Person1WorkEndYear = _settings.PlanningYear;
@@ -61,7 +131,22 @@ public partial class WizardWindow : Window
    "Für wie viele Personen soll die Planung gelten?",
    "Wähle „1 Person“, wenn nur deine eigene Planung berücksichtigt werden soll. Wähle „2 Personen“, wenn Einkommen, Rente und Lebensdauer einer zweiten Person mitgerechnet werden sollen.",
    () => _settings.HouseholdPersonCount == 1 ? "1 Person" : "2 Personen",
-   value => _settings.HouseholdPersonCount = value == "1 Person" ? 1 : 2,
+   value =>
+   {
+    int householdPersonCount =
+     value == "1 Person" ? 1 : 2;
+
+    if (_settings.CapitalGainsAllowance is 1000m or 2000m)
+    {
+     _settings.CapitalGainsAllowance =
+      householdPersonCount == 1
+       ? 1000m
+       : 2000m;
+    }
+
+    _settings.HouseholdPersonCount =
+     householdPersonCount;
+   },
    ["1 Person", "2 Personen"]);
 
   AddMoney(
@@ -278,6 +363,31 @@ public partial class WizardWindow : Window
    optional: true,
    isVisible: () => _settings.HouseholdPersonCount == 2);
 
+  AddInteger(
+   _advancedQuestions,
+   "Rente genauer",
+   "Bisherige Versicherungsjahre Person 1",
+   "Wie viele Versicherungsjahre hat Person 1 bisher erreicht?",
+   "Dieser Wert wird nur benötigt, wenn ein Rentenbeginn vor 67 geplant ist. Die App addiert die weiteren Jahre bis zum geplanten Arbeitsende und prüft, ob mindestens 35 Versicherungsjahre erreicht werden.",
+   () => _settings.Person1CurrentInsuranceYears,
+   value => _settings.Person1CurrentInsuranceYears = value,
+   0,
+   100,
+   optional: true);
+
+  AddInteger(
+   _advancedQuestions,
+   "Rente genauer",
+   "Bisherige Versicherungsjahre Person 2",
+   "Wie viele Versicherungsjahre hat Person 2 bisher erreicht?",
+   "Dieser Wert wird nur benötigt, wenn ein Rentenbeginn vor 67 geplant ist. Die App addiert die weiteren Jahre bis zum geplanten Arbeitsende und prüft, ob mindestens 35 Versicherungsjahre erreicht werden.",
+   () => _settings.Person2CurrentInsuranceYears,
+   value => _settings.Person2CurrentInsuranceYears = value,
+   0,
+   100,
+   optional: true,
+   isVisible: () => _settings.HouseholdPersonCount == 2);
+
   AddDecimal(
    _advancedQuestions,
    "Rente genauer",
@@ -402,6 +512,19 @@ public partial class WizardWindow : Window
 
   AddPercent(
    _advancedQuestions,
+   "Steuern",
+   "Steuertarif / Grundfreibetrag Steigerung p.a.",
+   "Mit welcher jährlichen Steigerung des Einkommensteuertarifs und Grundfreibetrags soll nach 2026 gerechnet werden?",
+   "Der Einkommensteuertarif 2026 ist gesetzlich festgelegt. Für spätere Jahre gibt es keine automatische gesetzliche Kopplung an deine allgemeine Inflationsannahme. 0 % bedeutet, dass keine zukünftige Tarifanhebung unterstellt wird. Ein anderer Wert ist eine eigene Planungsannahme.",
+   () => _settings.IncomeTaxTariffAnnualIncreaseRate,
+   value => _settings.IncomeTaxTariffAnnualIncreaseRate = value,
+   0m,
+   0.20m,
+   optional: true,
+   standardHint: () => $"Standardwert: {_settings.IncomeTaxTariffAnnualIncreaseRate:P1}");
+
+  AddPercent(
+   _advancedQuestions,
    "Annahmen",
    "Rentensteigerung pro Jahr",
    "Mit welcher jährlichen Rentensteigerung soll gerechnet werden?",
@@ -508,6 +631,30 @@ public partial class WizardWindow : Window
    100000000m,
    optional: true);
 
+  AddDecimal(
+   _advancedQuestions,
+   "Rücklagen",
+   "Wohnfläche der Immobilie in m²",
+   "Wie groß ist die Wohnfläche der Immobilie?",
+   "Die Wohnfläche wird zusammen mit dem Alter der Immobilie für die automatische Berechnung der jährlichen Haus-Instandhaltung verwendet.",
+   () => _settings.HouseLivingArea,
+   value => _settings.HouseLivingArea = value,
+   0m,
+   10000m,
+   optional: true);
+
+  AddInteger(
+   _advancedQuestions,
+   "Rücklagen",
+   "Alter der Immobilie in Jahren",
+   "Wie alt ist die Immobilie heute?",
+   "Das aktuelle Gebäudealter bestimmt den verwendeten Instandhaltungs-Richtwert pro Quadratmeter und läuft während der Simulation automatisch weiter.",
+   () => _settings.HouseAge,
+   value => _settings.HouseAge = value,
+   0,
+   500,
+   optional: true);
+
   AddMoney(
    _advancedQuestions,
    "Rücklagen",
@@ -568,19 +715,6 @@ public partial class WizardWindow : Window
    1m,
    optional: true,
    standardHint: () => $"Aktueller/Standardwert: {_settings.HouseBuildingShare:P0}");
-
-  AddPercent(
-   _expertQuestions,
-   "Rücklagen",
-   "Jährliche Haus-Rücklage",
-   "Welcher jährliche Prozentsatz des Gebäudewerts soll als Rücklagenziel angesetzt werden?",
-   "Das ist eine Modellannahme für den sicheren Geldbedarf. Wenn du keine eigene Annahme hast, behalte den vorhandenen Standardwert.",
-   () => _settings.HouseReserveRate,
-   value => _settings.HouseReserveRate = value,
-   0m,
-   0.20m,
-   optional: true,
-   standardHint: () => $"Aktueller/Standardwert: {_settings.HouseReserveRate:P1}");
 
   AddInteger(
    _advancedQuestions,
@@ -724,7 +858,7 @@ public partial class WizardWindow : Window
      _allocation = StrategyService.GetDefault(value);
     }
    },
-   ["Benutzerdefiniert (beibehalten)", "Sicherheit", "Ausgewogen", "Wachstum"],
+   ["Benutzerdefiniert (Ist-Stand)", "Sicherheit", "Ausgewogen", "Wachstum"],
    optional: true);
 
   AddChoice(
@@ -908,18 +1042,22 @@ public partial class WizardWindow : Window
   List<int> visibleIndexes = GetVisibleIndexes(list);
   int visiblePosition = visibleIndexes.IndexOf(_questionIndex) + 1;
 
-  PhaseText.Text =
+  string wizardPhase =
    _phase == WizardPhase.Core
     ? "Basics"
     : _phase == WizardPhase.Advanced
      ? "Fortgeschritten – optional"
      : "Experten – optional";
 
+  PhaseText.Text =
+   $"{GetRegularSectionTitle(question)} · {wizardPhase}";
+
   Progress.Maximum = Math.Max(1, visibleIndexes.Count);
   Progress.Value = visiblePosition;
   ProgressText.Text = $"Frage {visiblePosition} von {visibleIndexes.Count}";
 
-  QuestionTitle.Text = question.Title;
+  QuestionTitle.Text =
+   GetRegularQuestionTitle(question);
   ExplanationText.Text = question.Explanation;
   WhereText.Text = question.WhereToFind;
   WherePanel.Visibility = Visibility.Visible;
@@ -1157,17 +1295,20 @@ public partial class WizardWindow : Window
 
   foreach (WizardQuestion question in questions.Where(IsQuestionVisible))
   {
-   if (!string.Equals(lastCategory, question.Category, StringComparison.Ordinal))
+   string category =
+    GetRegularSectionTitle(question);
+
+   if (!string.Equals(lastCategory, category, StringComparison.Ordinal))
    {
     panel.Children.Add(new TextBlock
     {
-     Text = question.Category,
+     Text = category,
      FontWeight = FontWeights.SemiBold,
      Foreground = (Brush)FindResource("AccentBrush"),
      Margin = new Thickness(0, panel.Children.Count == 0 ? 0 : 14, 0, 6)
     });
 
-    lastCategory = question.Category;
+    lastCategory = category;
    }
 
    var row = new Grid
@@ -1180,7 +1321,7 @@ public partial class WizardWindow : Window
 
    var label = new TextBlock
    {
-    Text = question.Title,
+    Text = GetRegularQuestionTitle(question),
     TextWrapping = TextWrapping.Wrap,
     Foreground = (Brush)FindResource("TextBrush"),
     VerticalAlignment = VerticalAlignment.Center
@@ -1481,6 +1622,24 @@ public partial class WizardWindow : Window
   if (_settings.Person1RetirementAge < workEndAgePerson1)
    return "Der Rentenbeginn von Person 1 darf nicht vor dem geplanten Arbeitsende liegen.";
 
+  if (_settings.Person1CurrentInsuranceYears < 0)
+   return "Die bisherigen Versicherungsjahre von Person 1 dürfen nicht negativ sein.";
+
+  if (!PensionService.HasRequiredInsuranceYearsForEarlyRetirement(
+       _settings.Person1CurrentInsuranceYears,
+       _settings.Person1WorkEndYear,
+       _settings.Person1RetirementAge))
+  {
+   int insuranceYearsAtWorkEnd =
+    PensionService.CalculateInsuranceYearsAtWorkEnd(
+     _settings.Person1CurrentInsuranceYears,
+     _settings.Person1WorkEndYear);
+
+   return
+    $"Person 1 erreicht bis zum Arbeitsende nur {insuranceYearsAtWorkEnd} Versicherungsjahre. " +
+    $"Für einen Rentenbeginn vor 67 werden mindestens {PensionService.MinimumInsuranceYearsForEarlyRetirement} Versicherungsjahre benötigt.";
+  }
+
   if (_settings.Person1EndAge < _settings.Person1RetirementAge)
    return "Die Lebenserwartung von Person 1 muss nach dem Rentenbeginn liegen.";
 
@@ -1493,19 +1652,77 @@ public partial class WizardWindow : Window
    if (_settings.Person2RetirementAge < workEndAgePerson2)
     return "Der Rentenbeginn von Person 2 darf nicht vor dem geplanten Arbeitsende liegen.";
 
+   if (_settings.Person2CurrentInsuranceYears < 0)
+    return "Die bisherigen Versicherungsjahre von Person 2 dürfen nicht negativ sein.";
+
+   if (!PensionService.HasRequiredInsuranceYearsForEarlyRetirement(
+        _settings.Person2CurrentInsuranceYears,
+        _settings.Person2WorkEndYear,
+        _settings.Person2RetirementAge))
+   {
+    int insuranceYearsAtWorkEnd =
+     PensionService.CalculateInsuranceYearsAtWorkEnd(
+      _settings.Person2CurrentInsuranceYears,
+      _settings.Person2WorkEndYear);
+
+    return
+     $"Person 2 erreicht bis zum Arbeitsende nur {insuranceYearsAtWorkEnd} Versicherungsjahre. " +
+     $"Für einen Rentenbeginn vor 67 werden mindestens {PensionService.MinimumInsuranceYearsForEarlyRetirement} Versicherungsjahre benötigt.";
+   }
+
    if (_settings.Person2EndAge < _settings.Person2RetirementAge)
     return "Die Lebenserwartung von Person 2 muss nach dem Rentenbeginn liegen.";
   }
 
-  decimal existingDepotTotal =
+  if (_settings.HouseTotalValue > 0m &&
+      _settings.HouseLivingArea <= 0m)
+   return "Die Wohnfläche der Immobilie muss größer als 0 m² sein, wenn ein Hauswert eingetragen ist.";
+
+  decimal existingInvestmentTotal =
+   _settings.SecureInvestmentCurrentValue +
    _settings.WorldEtfCurrentValue +
    _settings.DividendEtfCurrentValue +
    _settings.DividendStocksCurrentValue;
 
-  if (existingDepotTotal > _settings.StartCapital)
-   return "Die Summe der bestehenden Depotwerte darf das verfügbare Startvermögen nicht überschreiten.";
+  if (existingInvestmentTotal > _settings.StartCapital)
+   return "Die Summe der bestehenden Anlagewerte darf das verfügbare Startvermögen nicht überschreiten.";
 
   return null;
+ }
+
+ private static string GetRegularQuestionTitle(
+  WizardQuestion question)
+ {
+  if (!RegularFieldNumbers.TryGetValue(
+       question.Title,
+       out int fieldNumber))
+   return question.Title;
+
+  string fieldLabel =
+   HintService.GetFieldLabel(fieldNumber);
+
+  return $"{fieldNumber:00}. {fieldLabel}";
+ }
+
+ private static string GetRegularSectionTitle(
+  WizardQuestion question)
+ {
+  if (!RegularFieldNumbers.TryGetValue(
+       question.Title,
+       out int fieldNumber))
+   return question.Category;
+
+  return fieldNumber switch
+  {
+   <= 18 => "1. Basisdaten & Planung",
+   <= 32 => "2. Gesetzliche Rente",
+   <= 45 => "3. Kranken- & Pflegeversicherung",
+   <= 54 => "4. Rücklagen / Sonderausgaben",
+   <= 73 => "5. Vermögen",
+   <= 82 => "6. Strategie & Aufteilung",
+   <= 90 => "7. Stressszenario",
+   _ => "8. Haus optional"
+  };
  }
 
  private string ReadEditorValue()
@@ -1579,7 +1796,7 @@ public partial class WizardWindow : Window
     return strategy;
   }
 
-  return "Benutzerdefiniert (beibehalten)";
+  return "Benutzerdefiniert (Ist-Stand)";
  }
 
  private static string FormatStressCrash(decimal value) =>

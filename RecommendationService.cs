@@ -39,12 +39,9 @@ public static class RecommendationService
     parts.Add("Keine Default-Strategie erfüllt Basis und Stress vollständig. Die gewählte Strategie „Sicherheit“ entspricht dem konservativen Fallback.");
   }
 
-  decimal existingDepotTotal =
-   settings.WorldEtfCurrentValue +
-   settings.DividendEtfCurrentValue +
-   settings.DividendStocksCurrentValue;
-  decimal strategyCapital = Math.Max(0m, settings.StartCapital - existingDepotTotal);
-  decimal availableCash = strategyCapital * allocation.Cash;
+  StrategyAllocation initialAllocation =
+   ProjectionService.GetInitialAllocation(settings, allocation);
+  decimal availableCash = settings.StartCapital * initialAllocation.Cash;
   decimal requiredCash = basis.InitialRequiredCash;
 
   if (settings.StartCapital > 0m && availableCash < requiredCash)
@@ -53,13 +50,13 @@ public static class RecommendationService
    decimal missingQuote = missing / settings.StartCapital;
 
    parts.Add(
-    $"Reserve/Rücklagen: Im Tages-/Festgeld fehlen zu Beginn rund {missing:N0} € " +
+    $"Reserve/Rücklagen: In der sicheren Anlage fehlen zu Beginn rund {missing:N0} € " +
     $"({missingQuote:P1} des Startvermögens). Kleinste sinnvolle Anpassung: " +
-    $"Tages-/Festgeld um etwa {missingQuote:P1} erhöhen und denselben Anteil aus dem größten Aktienbaustein reduzieren.");
+    $"sichere Anlage um etwa {missingQuote:P1} erhöhen und denselben Anteil aus dem größten Aktienbaustein reduzieren.");
   }
   else
   {
-   parts.Add("Reserve/Rücklagen sind mit dem gewählten Tages-/Festgeld-Anteil zu Beginn abgedeckt.");
+   parts.Add("Reserve/Rücklagen sind mit dem gewählten Anteil der sicheren Anlage zu Beginn abgedeckt.");
   }
 
   if (!stress.ReachesPlanEnd)
@@ -79,8 +76,8 @@ public static class RecommendationService
    parts.Add("Größter Hebel: Aktuell ist keine zwingende Änderung nötig.");
   }
 
-  if (allocation.DividendStocks > 0.25m)
-   parts.Add("Hinweis: Der Anteil einzelner Dividenden-Aktien ist hoch und erhöht das Einzelwertrisiko.");
+  if (initialAllocation.DividendStocks > 0.25m)
+   parts.Add("Hinweis: Der tatsächliche Startanteil einzelner Dividenden-Aktien ist hoch und erhöht das Einzelwertrisiko.");
 
   return string.Join(Environment.NewLine, parts);
  }

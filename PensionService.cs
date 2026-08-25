@@ -4,12 +4,37 @@ public static class PensionService
 {
  private const decimal HealthInsuranceEmployeeShare = 0.073m;
  private const int RegularRetirementAge = 67;
+ public const int MinimumInsuranceYearsForEarlyRetirement = 35;
  private const decimal EarlyRetirementReductionPerMonth = 0.003m;
  private const decimal MaximumEarlyRetirementReduction = 0.144m;
  private const decimal PensionIncomeExpenseAllowancePerPerson = 102m;
  private const decimal CurrentPensionValue2026 = 42.52m;
  private const decimal ProvisionalAverageAnnualEarnings2026 = 51944m;
  private const decimal PensionContributionAssessmentCeilingAnnual2026 = 101400m;
+
+ public static int CalculateInsuranceYearsAtWorkEnd(
+  int currentInsuranceYears,
+  int workEndYear)
+ {
+  return
+   Math.Max(0, currentInsuranceYears) +
+   Math.Max(0, workEndYear - DateTime.Today.Year);
+ }
+
+ public static bool HasRequiredInsuranceYearsForEarlyRetirement(
+  int currentInsuranceYears,
+  int workEndYear,
+  int retirementAge)
+ {
+  if (retirementAge >= RegularRetirementAge)
+   return true;
+
+  return
+   CalculateInsuranceYearsAtWorkEnd(
+    currentInsuranceYears,
+    workEndYear) >=
+   MinimumInsuranceYearsForEarlyRetirement;
+ }
 
  public static HealthInsuranceProjectionParameters CalculateHealthInsuranceProjectionParameters(
   PlannerSettings s,
@@ -47,7 +72,7 @@ public static class PensionService
     (careRateAnnualChange * yearsFromBaseYear)));
  }
 
- public static (decimal Gross, decimal Net, decimal HealthAndCareDeductions, decimal IncomeTax, decimal Person1Gross, decimal Person2Gross, decimal TaxableIncome1, decimal TaxableIncome2) CalculateAnnualPension(
+ public static AnnualPensionResult CalculateAnnualPension(
   PlannerSettings s, int year, int age1, int age2, bool stress)
  {
   decimal gross1 = 0m;
@@ -130,34 +155,67 @@ public static class PensionService
     healthInsuranceParameters.CareRate)
    : 0m;
 
-  decimal pensionIncomeTax = CalculateJointPensionIncomeTax(
-   s,
-   year,
-   age1,
-   age2,
-   gross1,
-   gross2,
-   deductions1,
-   deductions2,
-   person1PensionStartYear,
-   person2PensionStartYear,
-   person1MonthlyAtRetirement,
-   person2MonthlyAtRetirement,
-   out decimal taxableIncome1,
-   out decimal taxableIncome2);
+  PensionTaxableIncomeDiagnostics taxableIncome1 =
+   CalculateTaxablePensionIncomeDiagnostics(
+    gross1,
+    deductions1,
+    person1MonthlyAtRetirement,
+    s.Person1RetirementAge,
+    year,
+    age1,
+    person1PensionStartYear,
+    s.PensionIncreaseRate);
+
+  PensionTaxableIncomeDiagnostics taxableIncome2 =
+   CalculateTaxablePensionIncomeDiagnostics(
+    gross2,
+    deductions2,
+    person2MonthlyAtRetirement,
+    s.Person2RetirementAge,
+    year,
+    age2,
+    person2PensionStartYear,
+    s.PensionIncreaseRate);
+
+  bool person1Included = age1 <= s.Person1EndAge;
+  bool person2Included =
+   s.HouseholdPersonCount == 2 &&
+   age2 <= s.Person2EndAge;
+
+  ProjectedIncomeTaxDiagnostics incomeTax =
+   CalculateProjectedIncomeTaxDiagnostics(
+    s,
+    year,
+    taxableIncome1.TaxableIncome,
+    taxableIncome2.TaxableIncome,
+    person1Included,
+    person2Included);
 
   decimal gross = gross1 + gross2;
   decimal deductions = deductions1 + deductions2;
 
-  return (
+  return new AnnualPensionResult(
    gross,
-   Math.Max(0m, gross - deductions - pensionIncomeTax),
+   Math.Max(0m, gross - deductions - incomeTax.Total),
    deductions,
-   pensionIncomeTax,
+   incomeTax.Total,
    gross1,
    gross2,
-   taxableIncome1,
-   taxableIncome2);
+   taxableIncome1.TaxableIncome,
+   taxableIncome2.TaxableIncome,
+   deductions1,
+   deductions2,
+   taxableIncome1.TaxableShare,
+   taxableIncome2.TaxableShare,
+   taxableIncome1.FixedTaxFreePensionAmount,
+   taxableIncome2.FixedTaxFreePensionAmount,
+   taxableIncome1.PensionStartYear,
+   taxableIncome2.PensionStartYear,
+   incomeTax.IncomeTaxBeforeSurcharges,
+   incomeTax.SolidaritySurcharge,
+   incomeTax.ChurchTax,
+   incomeTax.TariffFactor,
+   incomeTax.ProjectedBasicAllowance);
  }
 
  public static decimal CalculateVoluntaryRetireeAdditionalHealthAndCareAnnual(
@@ -188,57 +246,7 @@ public static class PensionService
    healthInsuranceParameters.CareRate);
  }
 
- private static decimal CalculateJointPensionIncomeTax(
-  PlannerSettings s,
-  int year,
-  int age1,
-  int age2,
-  decimal gross1,
-  decimal gross2,
-  decimal deductions1,
-  decimal deductions2,
-  int person1PensionStartYear,
-  int person2PensionStartYear,
-  decimal person1MonthlyAtRetirement,
-  decimal person2MonthlyAtRetirement,
-  out decimal taxableIncome1,
-  out decimal taxableIncome2)
- {
-  taxableIncome1 = CalculateTaxablePensionIncome(
-   gross1,
-   deductions1,
-   person1MonthlyAtRetirement,
-   s.Person1RetirementAge,
-   year,
-   age1,
-   person1PensionStartYear,
-   s.PensionIncreaseRate);
-
-  taxableIncome2 = CalculateTaxablePensionIncome(
-   gross2,
-   deductions2,
-   person2MonthlyAtRetirement,
-   s.Person2RetirementAge,
-   year,
-   age2,
-   person2PensionStartYear,
-   s.PensionIncreaseRate);
-
-  bool person1Included = age1 <= s.Person1EndAge;
-  bool person2Included =
-   s.HouseholdPersonCount == 2 &&
-   age2 <= s.Person2EndAge;
-
-  return CalculateProjectedIncomeTaxIncludingSurcharges(
-   s,
-   year,
-   taxableIncome1,
-   taxableIncome2,
-   person1Included,
-   person2Included);
- }
-
- private static decimal CalculateTaxablePensionIncome(
+ private static PensionTaxableIncomeDiagnostics CalculateTaxablePensionIncomeDiagnostics(
   decimal currentAnnualGross,
   decimal deductibleHealthAndCare,
   decimal pensionGrossMonthlyAtRetirement,
@@ -249,7 +257,15 @@ public static class PensionService
   decimal pensionIncreaseRate)
  {
   if (currentAnnualGross <= 0m || currentAge < retirementAge)
-   return 0m;
+  {
+   return new PensionTaxableIncomeDiagnostics(
+    0m,
+    0m,
+    0m,
+    Math.Max(0m, deductibleHealthAndCare),
+    PensionIncomeExpenseAllowancePerPerson,
+    pensionStartYear);
+  }
 
   int yearsToPensionStart =
    Math.Max(0, pensionStartYear - DateTime.Today.Year);
@@ -261,14 +277,23 @@ public static class PensionService
    Pow(1m + pensionIncreaseRate, yearsToPensionStart);
 
   decimal taxableShare = GetPensionTaxableShare(pensionStartYear);
-  decimal fixedTaxFreePensionAmount = initialAnnualGross * (1m - taxableShare);
+  decimal fixedTaxFreePensionAmount =
+   initialAnnualGross * (1m - taxableShare);
 
-  return Math.Max(
+  decimal taxableIncome = Math.Max(
    0m,
    currentAnnualGross -
    fixedTaxFreePensionAmount -
    Math.Max(0m, deductibleHealthAndCare) -
    PensionIncomeExpenseAllowancePerPerson);
+
+  return new PensionTaxableIncomeDiagnostics(
+   taxableIncome,
+   taxableShare,
+   fixedTaxFreePensionAmount,
+   Math.Max(0m, deductibleHealthAndCare),
+   PensionIncomeExpenseAllowancePerPerson,
+   pensionStartYear);
  }
 
  private static decimal GetPensionTaxableShare(int pensionStartYear)
@@ -296,9 +321,39 @@ public static class PensionService
   decimal taxableIncome1,
   decimal taxableIncome2,
   bool person1Included,
+  bool person2Included) =>
+  CalculateProjectedIncomeTaxDiagnostics(
+   s,
+   year,
+   taxableIncome1,
+   taxableIncome2,
+   person1Included,
+   person2Included).Total;
+
+ public static ProjectedIncomeTaxDiagnostics CalculateProjectedIncomeTaxDiagnostics(
+  PlannerSettings s,
+  int year,
+  decimal taxableIncome1,
+  decimal taxableIncome2,
+  bool person1Included,
   bool person2Included)
  {
+  decimal tariffAnnualIncreaseRate =
+   Math.Max(0m, s.IncomeTaxTariffAnnualIncreaseRate);
+
+  int yearsFrom2026 = Math.Max(0, year - 2026);
+  decimal tariffFactor =
+   Pow(1m + tariffAnnualIncreaseRate, yearsFrom2026);
+
+  if (tariffFactor <= 0m)
+   tariffFactor = 1m;
+
+  decimal projectedBasicAllowance =
+   12348m * tariffFactor;
+
   decimal incomeTax;
+  decimal solidaritySurcharge;
+  decimal churchTax;
 
   if (s.JointTaxation &&
       person1Included &&
@@ -307,55 +362,84 @@ public static class PensionService
    incomeTax = CalculateProjectedJointIncomeTaxUsing2026Tariff(
     Math.Max(0m, taxableIncome1) + Math.Max(0m, taxableIncome2),
     year,
-    s.InflationRate);
+    tariffAnnualIncreaseRate);
 
-   return incomeTax +
-          CalculateProjectedSolidaritySurcharge(
-           incomeTax,
-           year,
-           s.InflationRate,
-           true) +
-          CalculateChurchTax(s, incomeTax);
+   solidaritySurcharge =
+    CalculateProjectedSolidaritySurcharge(
+     incomeTax,
+     year,
+     tariffAnnualIncreaseRate,
+     true);
+
+   churchTax =
+    CalculateChurchTax(s, incomeTax);
+
+   return new ProjectedIncomeTaxDiagnostics(
+    incomeTax,
+    solidaritySurcharge,
+    churchTax,
+    incomeTax + solidaritySurcharge + churchTax,
+    tariffFactor,
+    projectedBasicAllowance);
   }
 
   decimal incomeTax1 = person1Included
    ? CalculateProjectedIncomeTaxUsing2026Tariff(
       taxableIncome1,
       year,
-      s.InflationRate)
+      tariffAnnualIncreaseRate)
    : 0m;
 
   decimal incomeTax2 = person2Included
    ? CalculateProjectedIncomeTaxUsing2026Tariff(
       taxableIncome2,
       year,
-      s.InflationRate)
+      tariffAnnualIncreaseRate)
    : 0m;
 
-  return incomeTax1 +
-         CalculateProjectedSolidaritySurcharge(
-          incomeTax1,
-          year,
-          s.InflationRate,
-          false) +
-         CalculateChurchTax(s, incomeTax1) +
-         incomeTax2 +
-         CalculateProjectedSolidaritySurcharge(
-          incomeTax2,
-          year,
-          s.InflationRate,
-          false) +
-         CalculateChurchTax(s, incomeTax2);
+  decimal solidaritySurcharge1 =
+   CalculateProjectedSolidaritySurcharge(
+    incomeTax1,
+    year,
+    tariffAnnualIncreaseRate,
+    false);
+
+  decimal solidaritySurcharge2 =
+   CalculateProjectedSolidaritySurcharge(
+    incomeTax2,
+    year,
+    tariffAnnualIncreaseRate,
+    false);
+
+  decimal churchTax1 =
+   CalculateChurchTax(s, incomeTax1);
+
+  decimal churchTax2 =
+   CalculateChurchTax(s, incomeTax2);
+
+  incomeTax = incomeTax1 + incomeTax2;
+  solidaritySurcharge =
+   solidaritySurcharge1 + solidaritySurcharge2;
+  churchTax =
+   churchTax1 + churchTax2;
+
+  return new ProjectedIncomeTaxDiagnostics(
+   incomeTax,
+   solidaritySurcharge,
+   churchTax,
+   incomeTax + solidaritySurcharge + churchTax,
+   tariffFactor,
+   projectedBasicAllowance);
  }
 
  private static decimal CalculateProjectedSolidaritySurcharge(
   decimal incomeTax,
   int year,
-  decimal inflationRate,
+  decimal tariffAnnualIncreaseRate,
   bool jointTaxation)
  {
   int yearsFrom2026 = Math.Max(0, year - 2026);
-  decimal thresholdFactor = Pow(1m + inflationRate, yearsFrom2026);
+  decimal thresholdFactor = Pow(1m + tariffAnnualIncreaseRate, yearsFrom2026);
 
   if (thresholdFactor <= 0m)
    thresholdFactor = 1m;
@@ -385,13 +469,13 @@ public static class PensionService
  private static decimal CalculateProjectedJointIncomeTaxUsing2026Tariff(
   decimal jointTaxableIncome,
   int year,
-  decimal inflationRate)
+  decimal tariffAnnualIncreaseRate)
  {
   decimal halfIncome = Math.Floor(Math.Max(0m, jointTaxableIncome) / 2m);
   decimal taxPerPerson = CalculateProjectedIncomeTaxUsing2026Tariff(
    halfIncome,
    year,
-   inflationRate);
+   tariffAnnualIncreaseRate);
 
   return taxPerPerson * 2m;
  }
@@ -399,10 +483,10 @@ public static class PensionService
  private static decimal CalculateProjectedIncomeTaxUsing2026Tariff(
   decimal taxableIncome,
   int year,
-  decimal inflationRate)
+  decimal tariffAnnualIncreaseRate)
  {
   int yearsFrom2026 = Math.Max(0, year - 2026);
-  decimal tariffFactor = Pow(1m + inflationRate, yearsFrom2026);
+  decimal tariffFactor = Pow(1m + tariffAnnualIncreaseRate, yearsFrom2026);
 
   if (tariffFactor <= 0m)
    tariffFactor = 1m;
@@ -467,7 +551,7 @@ public static class PensionService
 
   string currentPensionSource =
    pensionPoints > 0m
-    ? "Entgeltpunkte"
+    ? $"Entgeltpunkte × aktueller Rentenwert 2026 ({CurrentPensionValue2026:N2} €)"
     : "Heute bereits erworbene Rente";
 
   decimal currentPension = pensionPoints > 0m
@@ -558,15 +642,37 @@ public static class PensionService
 
     if (projectedPensionAt67 > enteredCurrentPension)
     {
-     futureAccrualSource = "DRV-Hochrechnung bis 67";
-
-     decimal additionalPensionPerContributionYear =
+     decimal projectedAdditionalPensionMonthly =
       (projectedPensionAt67 - enteredCurrentPension) /
-      yearsToRegularRetirement;
+      yearsToRegularRetirement *
+      additionalContributionYears;
+
+     if (pensionPoints > 0m &&
+         enteredCurrentPension > 0m)
+     {
+      decimal pensionValueAtInformationDate =
+       enteredCurrentPension / pensionPoints;
+
+      if (pensionValueAtInformationDate > 0m)
+      {
+       projectedAdditionalPensionMonthly *=
+        CurrentPensionValue2026 / pensionValueAtInformationDate;
+
+       futureAccrualSource =
+        "DRV-Hochrechnung bis 67, auf aktuellen Rentenwert 2026 umgerechnet";
+      }
+      else
+      {
+       futureAccrualSource = "DRV-Hochrechnung bis 67";
+      }
+     }
+     else
+     {
+      futureAccrualSource = "DRV-Hochrechnung bis 67";
+     }
 
      additionalPensionMonthly =
-      additionalPensionPerContributionYear *
-      additionalContributionYears;
+      projectedAdditionalPensionMonthly;
     }
    }
   }
